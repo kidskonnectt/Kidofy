@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "920546448999",
+    "project_id": "kids-konnectt",
+    "storage_bucket": "kids-konnectt.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:920546448999:android:4ff74d0f66899c9c5e8e0ki",
+        "android_client_info": {
+          "package_name": "com.kidofy.kidofyapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "920546448999-t5nla6o5clhpc6ma3k8t2g5ba5cfp34b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCgp2vHwjX5LZqV9vB1a2c3d4e5f6g7h8i"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "920546448999-t5nla6o5clhpc6ma3k8t2g5ba5cfp34b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

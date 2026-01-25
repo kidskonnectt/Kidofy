@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KidsKonnect Admin</title>
+    <!-- Tailwind CSS for quick styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Login Section -->
+    <div id="login-container" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-6 md:p-8 rounded-lg shadow-md w-full max-w-sm">
+            <h1 class="text-2xl font-bold mb-6 text-center text-purple-600">Admin Login</h1>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                <input type="email" id="email" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500">
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                <input type="password" id="password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500">
+            </div>
+            <button onclick="handleLogin()" class="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">
+                Sign In
+            </button>
+            <p id="login-error" class="text-red-500 text-sm mt-4 text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard-container" class="hidden">
+        <!-- Sidebar -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 hidden z-40" onclick="closeSidebar()"></div>
+
+        <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-purple-800 text-white z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
+            <div class="p-6 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Kidofy Admin</h1>
+                <button onclick="toggleSidebarInternal()" class="md:hidden text-white focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <!-- Desktop Close Button (User Request) -->
+                <button onclick="toggleSidebarDesktop()" class="hidden md:block text-white focus:outline-none hover:text-gray-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
+                </button>
+            </div>
+            <nav class="mt-6">
+                <a href="#" onclick="showSection('users')" class="block py-3 px-6 hover:bg-purple-700 nav-link active">Users & Admins</a>
+                <a href="#" onclick="showSection('videos')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Videos</a>
+                <a href="#" onclick="showSection('channels')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Channels</a>
+                <a href="#" onclick="showSection('categories')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Categories</a>
+                <a href="#" onclick="showSection('mart')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Mart Products</a>
+                <a href="#" onclick="showSection('referrals')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Referrals</a>
+                <a href="#" onclick="showSection('reports')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Reports</a>
+            </nav>
+            <div class="absolute bottom-0 w-full p-6">
+                <button onclick="handleLogout()" class="flex items-center text-white hover:text-gray-200">
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="md:ml-64 ml-0 p-4 md:p-8 transition-all duration-200">
+            <!-- Header -->
+            <div class="flex flex-col gap-3 md:flex-row md:justify-between md:items-center mb-6 md:mb-8">
+                <div class="flex items-center gap-3">
+                    <button class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded bg-white shadow" onclick="openSidebar()" aria-label="Open menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                        </svg>
+                    </button>
+                    <h2 id="section-title" class="text-2xl md:text-3xl font-bold text-gray-800">Users</h2>
+                </div>
+                <div class="text-gray-600" id="user-display">Admin</div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="content-area" class="bg-white rounded-lg shadow-md p-6">
+                <!-- Dynamic Content Loaded Here -->
+                <div id="users-section">
+                    <div class="flex justify-between mb-4">
+                        <h3 class="text-xl font-bold">User Management</h3>
+                        <button onclick="showAddUserModal()" class="bg-blue-500 text-white px-4 py-2 rounded">Add User</button>
+                    </div>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="border-b p-3">Email</th>
+                                <th class="border-b p-3">Is Admin</th>
+                                <th class="border-b p-3">Joined</th>
+                                <th class="border-b p-3">Last Login</th>
+                                <th class="border-b p-3">Profiles</th>
+                                <th class="border-b p-3">Watch Time</th>
+                                <th class="border-b p-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="channels-section" class="hidden">
+                    <div class="flex justify-between mb-4">
+                        <h3 class="text-xl font-bold">Channel Management</h3>
+                        <button onclick="showAddChannelModal()" class="bg-indigo-500 text-white px-4 py-2 rounded">Add Channel</button>
+                    </div>
+                    <div id="channels-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Channels -->
+                    </div>
+                </div>
+
+                <div id="videos-section" class="hidden">
+                     <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <h3 class="text-xl font-bold">Video Library</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="video-search" oninput="filterVideos()" placeholder="Search title..." class="border px-2 py-1 rounded">
+                            <select id="video-filter-category" onchange="filterVideos()" class="border px-2 py-1 rounded">
+                                <option value="">All Categories</option>
+                                <!-- Categories populated dynamically -->
+                            </select>
+                             <button onclick="showAddVideoModal()" class="bg-green-500 text-white px-4 py-2 rounded">Add Video</button>
+                        </div>
+                    </div>
+                    <div id="videos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Video Cards -->
+                    </div>
+                </div>
+
+                <div id="categories-section" class="hidden">
+                     <div class="flex justify-between mb-4">
+                        <h3 class="text-xl font-bold">Categories</h3>
+                        <button onclick="showAddCategoryModal()" class="bg-yellow-500 text-white px-4 py-2 rounded">Add Category</button>
+                    </div>
+                    <div id="categories-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Category Tags -->
+                    </div>
+                </div>
+
+                <div id="mart-section" class="hidden">
+                     <div class="flex justify-between mb-4">
+                        <h3 class="text-xl font-bold">Mart Products</h3>
+                        <button onclick="showAddMartModal()" class="bg-pink-500 text-white px-4 py-2 rounded">Add Product</button>
+                    </div>
+                    <div id="mart-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Mart Product Cards -->
+                    </div>
+                </div>
+
+                <div id="referrals-section" class="hidden">
+                    <div class="flex justify-between mb-4">
+                        <h3 class="text-xl font-bold">Referrals</h3>
+                        <button onclick="loadDashboardData('referrals')" class="bg-purple-600 text-white px-4 py-2 rounded">Refresh</button>
+                    </div>
+                    <div class="overflow-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="border-b p-3">ID</th>
+                                    <th class="border-b p-3">Referrer</th>
+                                    <th class="border-b p-3">Referred</th>
+                                    <th class="border-b p-3">Status</th>
+                                    <th class="border-b p-3">Created</th>
+                                    <th class="border-b p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referrals-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="reports-section" class="hidden">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <h3 class="text-xl font-bold">Reports</h3>
+                        <div class="flex gap-2">
+                             <input type="text" id="report-search" oninput="filterReports()" placeholder="Search..." class="border px-2 py-1 rounded">
+                             <select id="report-filter-status" onchange="filterReports()" class="border px-2 py-1 rounded">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="dismissed">Dismissed</option>
+                             </select>
+                            <button onclick="loadDashboardData('reports')" class="bg-purple-600 text-white px-4 py-2 rounded">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="overflow-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="border-b p-3">ID</th>
+                                    <th class="border-b p-3">User</th>
+                                    <th class="border-b p-3">Video</th>
+                                    <th class="border-b p-3">Reason</th>
+                                    <th class="border-b p-3">Status</th>
+                                    <th class="border-b p-3">Created</th>
+                                    <th class="border-b p-3">Response</th>
+                                    <th class="border-b p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Template (Generic wrapper) -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 id="modal-title" class="text-xl font-bold mb-4">Title</h3>
+            <div id="modal-content"></div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                <button id="modal-action-btn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config script (local, gitignored) -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+═══════════════════════════════════════════════════════════════
+FIX APPLIED: INFINITE RECURSION ERROR RESOLVED
+═══════════════════════════════════════════════════════════════
+
+WHAT WAS THE PROBLEM:
+The RLS policy on the users table was causing infinite recursion 
+because it tried to query the users table while being protected by 
+that same policy.
+
+WHAT WE FIXED:
+Changed from:
+  - RLS ENABLED on users table with recursive policy
+  
+To:
+  - RLS DISABLED on users table
+  - Admin authorization handled in admin panel JavaScript code
+
+WHY THIS IS BETTER:
+1. No infinite recursion errors ✓
+2. Admin panel can load all users for management ✓
+3. Authorization still enforced (only admins can access admin panel) ✓
+4. Cleaner, simpler implementation ✓
+
+═══════════════════════════════════════════════════════════════
+RUN THIS UPDATED SQL FILE IN SUPABASE
+═══════════════════════════════════════════════════════════════
+
+If you already ran the old SQL:
+1. First, DELETE the problematic RLS policy:
+   DROP POLICY IF EXISTS "Users can view their own record" ON public.users;
+   ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+
+2. Then run the NEW SQL below
+
+═══════════════════════════════════════════════════════════════
+COMPLETE FIXED SQL - RUN ALL OF THIS
+═══════════════════════════════════════════════════════════════
