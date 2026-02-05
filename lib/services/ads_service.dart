@@ -9,17 +9,17 @@ enum InterstitialSlot { preRoll, midRoll, postRoll }
 
 class AdsService {
   static const String _adMobAppIdAndroid =
-      'ca-app-pub-2428967748052842~1409514429';
+      'ca-app-pub-9631152544509905~3488703613';
 
   static const String _preRollAndroid =
-      'ca-app-pub-2428967748052842/7085169479';
+      'ca-app-pub-9631152544509905/3272681816';
   static const String _midRollAndroid =
-      'ca-app-pub-2428967748052842/4737357672';
+      'ca-app-pub-9631152544509905/1465949585';
   static const String _postRollAndroid =
-      'ca-app-pub-2428967748052842/3317314856';
+      'ca-app-pub-9631152544509905/3025269801';
 
   static const String _nativeSnapsAndroid =
-      'ca-app-pub-2428967748052842/8457960892';
+      'ca-app-pub-9631152544509905/3026443266';
 
   static bool _initialized = false;
   static bool get isInitialized => _initialized;
@@ -33,6 +33,8 @@ class AdsService {
       <InterstitialSlot, InterstitialAd?>{};
   static final Map<InterstitialSlot, Completer<InterstitialAd?>>
   _loadingInterstitial = <InterstitialSlot, Completer<InterstitialAd?>>{};
+  static final Map<InterstitialSlot, DateTime> _lastPreloadTime =
+      <InterstitialSlot, DateTime>{};
 
   static String get androidAppId => _adMobAppIdAndroid;
   static String get nativeSnapsUnitIdAndroid => _nativeSnapsAndroid;
@@ -79,6 +81,19 @@ class AdsService {
 
     final existingLoad = _loadingInterstitial[slot];
     if (existingLoad != null) return existingLoad.future;
+
+    // Debounce: don't request if we loaded recently (within 1 second)
+    final lastTime = _lastPreloadTime[slot];
+    if (lastTime != null) {
+      final elapsed = DateTime.now().difference(lastTime);
+      if (elapsed.inMilliseconds < 1000) {
+        final completer = Completer<InterstitialAd?>();
+        completer.complete(null);
+        return completer.future;
+      }
+    }
+
+    _lastPreloadTime[slot] = DateTime.now();
 
     final completer = Completer<InterstitialAd?>();
     _loadingInterstitial[slot] = completer;
@@ -134,15 +149,20 @@ class AdsService {
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _cachedInterstitial[slot] = null;
-        // Start loading the next one ASAP.
-        unawaited(preloadInterstitial(slot));
+        // Schedule next preload with a small delay to avoid deep request chains
+        Future.delayed(const Duration(milliseconds: 500), () {
+          unawaited(preloadInterstitial(slot));
+        });
         if (!dismissed.isCompleted) dismissed.complete();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('Interstitial failed to show ($slot): $error');
         ad.dispose();
         _cachedInterstitial[slot] = null;
-        unawaited(preloadInterstitial(slot));
+        // Schedule next preload with a small delay to avoid deep request chains
+        Future.delayed(const Duration(milliseconds: 500), () {
+          unawaited(preloadInterstitial(slot));
+        });
         if (!dismissed.isCompleted) dismissed.complete();
       },
     );
@@ -159,7 +179,10 @@ class AdsService {
         // ignore
       }
       _cachedInterstitial[slot] = null;
-      unawaited(preloadInterstitial(slot));
+      // Schedule next preload with a small delay to avoid deep request chains
+      Future.delayed(const Duration(milliseconds: 500), () {
+        unawaited(preloadInterstitial(slot));
+      });
       return false;
     }
   }

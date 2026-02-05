@@ -52,6 +52,7 @@
                 <a href="#" onclick="showSection('videos')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Videos</a>
                 <a href="#" onclick="showSection('channels')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Channels</a>
                 <a href="#" onclick="showSection('categories')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Categories</a>
+                <a href="#" onclick="showSection('contacts')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Contacts</a>
                 <a href="#" onclick="showSection('mart')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Mart Products</a>
                 <a href="#" onclick="showSection('referrals')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Referrals</a>
                 <a href="#" onclick="showSection('reports')" class="block py-3 px-6 hover:bg-purple-700 nav-link">Reports</a>
@@ -118,7 +119,7 @@
                      <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                         <h3 class="text-xl font-bold">Video Library</h3>
                         <div class="flex gap-2">
-                            <input type="text" id="video-search" oninput="filterVideos()" placeholder="Search title..." class="border px-2 py-1 rounded">
+                            <input type="text" id="video-search" oninput="filterVideos()" placeholder="Search title, ID, channel..." class="border px-2 py-1 rounded">
                             <select id="video-filter-category" onchange="filterVideos()" class="border px-2 py-1 rounded">
                                 <option value="">All Categories</option>
                                 <!-- Categories populated dynamically -->
@@ -138,6 +139,60 @@
                     </div>
                     <div id="categories-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <!-- Category Tags -->
+                    </div>
+                </div>
+
+                <div id="contacts-section" class="hidden">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <h3 class="text-xl font-bold">Contacts Management</h3>
+                        <div class="flex gap-2 flex-wrap">
+                            <input type="text" id="contacts-search" oninput="filterContacts()" placeholder="Search name, phone, email..." class="border px-2 py-1 rounded">
+                            <select id="contacts-filter-type" onchange="filterContacts()" class="border px-2 py-1 rounded">
+                                <option value="">All Contacts</option>
+                                <option value="phone">Has Phone</option>
+                                <option value="email">Has Email</option>
+                            </select>
+                            <select id="contacts-filter-user" onchange="filterContacts()" class="border px-2 py-1 rounded">
+                                <option value="">All Users</option>
+                                <!-- Users populated dynamically -->
+                            </select>
+                            <button onclick="loadDashboardData('contacts')" class="bg-blue-600 text-white px-4 py-2 rounded">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="overflow-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="border-b p-3">Contact Name</th>
+                                    <th class="border-b p-3">Phone Number</th>
+                                    <th class="border-b p-3">Email</th>
+                                    <th class="border-b p-3">User Email</th>
+                                    <th class="border-b p-3">Synced At</th>
+                                    <th class="border-b p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contacts-table-body">
+                                <!-- Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="contacts-stats" class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 p-4 rounded">
+                            <div class="text-2xl font-bold text-blue-600" id="total-contacts">0</div>
+                            <div class="text-gray-600">Total Contacts</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded">
+                            <div class="text-2xl font-bold text-green-600" id="contacts-with-phone">0</div>
+                            <div class="text-gray-600">With Phone</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded">
+                            <div class="text-2xl font-bold text-purple-600" id="contacts-with-email">0</div>
+                            <div class="text-gray-600">With Email</div>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded">
+                            <div class="text-2xl font-bold text-orange-600" id="unique-users">0</div>
+                            <div class="text-gray-600">Unique Users</div>
+                        </div>
                     </div>
                 </div>
 

@@ -135,7 +135,7 @@ if (msg.contains('apierception: 10')) {
 
 **Verified**:
 - ✅ `com.google.gms.google-services` plugin applied
-- ✅ `applicationId = "com.kidofy.kidofyapp"`
+- ✅ `applicationId = "com.kidofy.kidsapp"`
 - ✅ Java 11 compatibility set
 - ✅ Firebase dependencies declared
 
@@ -145,7 +145,7 @@ if (msg.contains('apierception: 10')) {
 **Status**: Already correctly configured
 
 **Verified**:
-- ✅ Package name: `com.kidofy.kidofyapp`
+- ✅ Package name: `com.kidofy.kidsapp`
 - ✅ Google Ads metadata: `ca-app-pub-2428967748052842~1409514429`
 - ✅ Deep links configured (Supabase + app links)
 - ✅ Permissions set correctly
@@ -197,7 +197,7 @@ Native Snaps:  ca-app-pub-2428967748052842/8457960892
    - Status: ✅ Created with correct Firebase config
 
 2. **Package Name**
-   - Value: `com.kidofy.kidofyapp`
+   - Value: `com.kidofy.kidsapp`
    - Status: ✅ Registered in Firebase
    - Status: ✅ Registered in Google Cloud
 

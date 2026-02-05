@@ -59,12 +59,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
     _activePlayers++;
-    // Force landscape-only playback in player
+    // Force landscape-only playback in player with auto-rotation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Enable orientation changes by listening to MediaQuery
+    _armHideTimer();
     _initPlayer();
   }
 
@@ -562,14 +564,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             child: VideoPlayer(controller),
                           ),
                         )
-                      : RotatedBox(
-                          quarterTurns: 2,
-                          child: CachedNetworkImage(
-                            imageUrl: widget.video.thumbnailUrl,
-                            fit: BoxFit.cover,
-                            color: Colors.black.withValues(alpha: 0.5),
-                            colorBlendMode: BlendMode.darken,
-                          ),
+                      : CachedNetworkImage(
+                          imageUrl: widget.video.thumbnailUrl,
+                          fit: BoxFit.cover,
+                          color: Colors.black.withValues(alpha: 0.5),
+                          colorBlendMode: BlendMode.darken,
                         ),
                 ),
 

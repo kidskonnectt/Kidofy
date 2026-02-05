@@ -1,4 +1,4 @@
-package com.kidofy.kidofyapp
+package com.kidofy.kidsapp
 
 import io.flutter.embedding.android.FlutterActivity
 

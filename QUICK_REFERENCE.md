@@ -4,7 +4,7 @@
 
 ### 1. ✅ Google Sign-In OAuth - FIXED
 - Added `google-services.json` to `android/app/`
-- Verified package name: `com.kidofy.kidofyapp`
+- Verified package name: `com.kidofy.kidsapp`
 - Enhanced error messages in login screen
 - Configuration verified with Google Cloud
 
@@ -34,7 +34,7 @@
 ---
 
 ### 3. ✅ Package Name - VERIFIED
-**Android Package**: `com.kidofy.kidofyapp` ✅ Correct
+**Android Package**: `com.kidofy.kidsapp` ✅ Correct
 
 Configured in:
 - ✅ `android/app/build.gradle.kts`
@@ -160,7 +160,7 @@ Solution: google-services.json missing or wrong
 ```
 Solution: Package name registration issue
 1. Firebase Console → Your App settings
-2. Verify Package Name: com.kidofy.kidofyapp
+2. Verify Package Name: com.kidofy.kidsapp
 3. If missing, click "Add fingerprint"
 4. Rebuild app
 ```

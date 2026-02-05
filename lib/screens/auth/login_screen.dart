@@ -188,9 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      debugPrint('🔐 LoginScreen: Starting Google Sign-In...');
       final sessionReady = await SupabaseService.signInWithGoogle();
+
       if (!sessionReady) {
         if (mounted) {
+          debugPrint('⚠️ LoginScreen: Web flow - waiting for browser redirect');
           setState(() {
             _isLoading = false;
             _errorMessage =
@@ -199,9 +202,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         return;
       }
+
+      debugPrint('✅ LoginScreen: Google Sign-In session ready');
       // Navigation happens via auth state listener.
-    } on SocketException {
+    } on SocketException catch (e) {
       if (mounted) {
+        debugPrint('❌ LoginScreen: SocketException - ${e.message}');
         setState(() {
           _errorMessage =
               'Network error: unable to reach the server. Check internet/DNS and try again.';
@@ -210,6 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) {
+        debugPrint('❌ LoginScreen: AuthException - ${e.message}');
         setState(() {
           final msg = e.message.toLowerCase();
 
@@ -225,7 +232,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Firebase/Google Sign-In configuration error. Verify google-services.json is present and package name matches Firebase.';
           } else if (msg.contains('package') || msg.contains('com.kidofy')) {
             _errorMessage =
-                'Package name mismatch. Ensure com.kidofy.kidofyapp is registered in Firebase.';
+                'Package name mismatch. Ensure com.kidofy.kidsapp is registered in Firebase.';
+          } else if (msg.contains('timeout')) {
+            _errorMessage =
+                'Google Sign-In timed out. Check your internet connection and try again.';
           } else {
             _errorMessage = "Google Sign In: ${e.message}";
           }
@@ -234,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        debugPrint('❌ LoginScreen: Unexpected error - $e');
         setState(() {
           final msg = e.toString().toLowerCase();
           if (msg.contains('apierception: 10')) {
@@ -242,6 +253,9 @@ class _LoginScreenState extends State<LoginScreen> {
           } else if (msg.contains('configuration')) {
             _errorMessage =
                 'Google Sign-In misconfigured. Check Firebase Console.';
+          } else if (msg.contains('timeout')) {
+            _errorMessage =
+                'Request timed out. Please check your internet and try again.';
           } else {
             _errorMessage = "Google Sign In failed: $e";
           }
@@ -366,17 +380,25 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _loginWithGoogle,
-                icon: const Icon(
-                  Icons.g_mobiledata, // Or use proper Google Svg
-                  size: 30,
-                ),
-                label: const Text("Continue with Google"),
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.g_mobiledata, size: 30),
+                label: _isLoading
+                    ? const Text("Signing in...")
+                    : const Text("Continue with Google"),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  side: const BorderSide(color: Colors.grey),
+                  side: BorderSide(
+                    color: _isLoading ? Colors.grey[300]! : Colors.grey,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
+                  disabledForegroundColor: Colors.grey,
                 ),
               ),
 

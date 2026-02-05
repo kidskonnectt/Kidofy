@@ -77,15 +77,15 @@ class _CategorySelectorState extends State<CategorySelector> {
                       borderRadius: BorderRadius.circular(999),
                       child: CachedNetworkImage(
                         imageUrl: category.iconUrl!,
-                        width: 22,
-                        height: 22,
+                        width: 28,
+                        height: 28,
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Icon(
                           _getIconForCategory(category.id),
                           color: isSelected
                               ? Colors.white
                               : Color(category.color),
-                          size: 20,
+                          size: 26,
                         ),
                       ),
                     )
@@ -93,13 +93,11 @@ class _CategorySelectorState extends State<CategorySelector> {
                     Icon(
                       _getIconForCategory(category.id),
                       color: isSelected ? Colors.white : Color(category.color),
-                      size: 20,
+                      size: 26,
                     ),
                   const SizedBox(width: 8),
                   Text(
-                    category.id == '0'
-                        ? category.name
-                        : '${category.id}: ${category.name}',
+                    category.name,
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.textDark,
                       fontWeight: FontWeight.bold,

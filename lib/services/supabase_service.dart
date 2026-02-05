@@ -45,10 +45,13 @@ class SupabaseService {
   }
 
   static Future<bool> signInWithGoogle() async {
+    debugPrint('🔐 Google Sign-In: Starting flow...');
+
     // Web: use Supabase OAuth redirect back to the current web origin.
     // The session will be created by exchanging the returned ?code=... on app
     // startup (see main.dart).
     if (kIsWeb) {
+      debugPrint('🌐 Google Sign-In: Web platform detected');
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: Uri.base.origin,
@@ -62,51 +65,115 @@ class SupabaseService {
 
     // Desktop platforms are not configured for Google Sign-In in this app.
     if (!isMobile) {
+      debugPrint('❌ Google Sign-In: Desktop platform not supported');
       throw const AuthException(
         'Google Sign-In is only configured for Android/iOS/Web in this app.',
       );
     }
 
+    debugPrint('📱 Google Sign-In: Mobile platform detected, initializing...');
+
     // Mobile: native in-app Google account picker (no browser redirect).
-    await _ensureGoogleInitialized();
+    try {
+      await _ensureGoogleInitialized();
+      debugPrint('✅ Google Sign-In: Initialized');
+    } catch (e) {
+      debugPrint('❌ Google Sign-In: Initialization failed - $e');
+      throw AuthException('Google Sign-In initialization failed: $e');
+    }
 
     try {
+      debugPrint('🔄 Google Sign-In: Signing out previous user...');
       // Force the account chooser each time.
       try {
         await _googleSignIn.signOut();
-      } catch (_) {
-        // ignore
+        debugPrint('✅ Google Sign-In: Previous user signed out');
+      } catch (e) {
+        debugPrint('⚠️ Google Sign-In: Signout warning - $e');
+        // ignore - not critical
       }
 
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
-        scopeHint: const ['email', 'profile'],
+      debugPrint('📱 Google Sign-In: Showing account picker...');
+
+      // Add timeout to prevent infinite loading
+      final googleUser = await _googleSignIn
+          .authenticate(scopeHint: const ['email', 'profile'])
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              debugPrint('⏱️ Google Sign-In: Timeout after 60 seconds');
+              throw const AuthException(
+                'Google Sign-In timed out. Check your internet connection and try again.',
+              );
+            },
+          );
+
+      // If we reach here, googleUser is not null (authenticate throws instead)
+      debugPrint(
+        '✅ Google Sign-In: User selected, getting authentication tokens...',
       );
-      final GoogleSignInAuthentication auth = googleUser.authentication;
+
+      final auth = googleUser.authentication;
       final String? idToken = auth.idToken;
 
       if (idToken == null || idToken.isEmpty) {
+        debugPrint('❌ Google Sign-In: No ID token received');
         throw const AuthException(
           'Google Sign-In did not return an ID token. Check Firebase SHA-1/SHA-256, package name, and Supabase Google provider settings.',
         );
       }
 
-      final response = await client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-      );
-      return response.session != null;
-    } catch (e) {
-      final msg = e.toString();
-      if (msg.toLowerCase().contains('canceled') ||
-          msg.toLowerCase().contains('cancelled')) {
+      debugPrint('🔐 Google Sign-In: Exchanging ID token with Supabase...');
+
+      final response = await client.auth
+          .signInWithIdToken(provider: OAuthProvider.google, idToken: idToken)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⏱️ Google Sign-In: Supabase exchange timeout');
+              throw const AuthException(
+                'Authentication service timeout. Please check your internet connection.',
+              );
+            },
+          );
+
+      final success = response.session != null;
+      if (success) {
+        debugPrint('🎉 Google Sign-In: SUCCESS - Session created');
+      } else {
+        debugPrint('⚠️ Google Sign-In: No session returned');
+      }
+      return success;
+    } on AuthException catch (e) {
+      debugPrint('❌ Google Sign-In: AuthException - ${e.message}');
+      final msg = e.message.toLowerCase();
+
+      if (msg.contains('canceled') || msg.contains('cancelled')) {
         throw const AuthException('Sign-in cancelled');
       }
-      if (msg.contains('ApiException: 10')) {
-        throw const AuthException(
+      if (msg.contains('apierception: 10')) {
+        throw AuthException(
           'Google Sign-In configuration error (ApiException: 10). Add SHA-1 and SHA-256 for your app in Firebase, download a new google-services.json, and ensure the package name matches.',
         );
       }
       rethrow;
+    } catch (e) {
+      debugPrint('❌ Google Sign-In: Unexpected error - $e');
+      final msg = e.toString().toLowerCase();
+
+      if (msg.contains('canceled') || msg.contains('cancelled')) {
+        throw const AuthException('Sign-in cancelled');
+      }
+      if (msg.contains('apierception: 10')) {
+        throw AuthException(
+          'Google Sign-In configuration error (ApiException: 10). Add SHA-1 and SHA-256 for your app in Firebase, download a new google-services.json, and ensure the package name matches.',
+        );
+      }
+      if (msg.contains('timeout')) {
+        throw AuthException('Google Sign-In timed out: $e');
+      }
+
+      throw AuthException('Google Sign-In error: $e');
     }
   }
 

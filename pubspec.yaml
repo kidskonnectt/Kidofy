@@ -1,7 +1,7 @@
 name: kidsapp
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.3+3
+version: 1.0.6+6
 
 environment:
   sdk: ^3.9.2
@@ -45,9 +45,13 @@ flutter:
     - assets/
 
 flutter_launcher_icons:
-  android: true
+  android: "adaptive_icon"
   ios: true
   image_path: "assets/app_icon.png"
   adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background_file: "assets/adaptive_icon_background.png"
   adaptive_icon_foreground: "assets/app_icon_foreground.png"
   remove_alpha_ios: true
+  web:
+    generate: true
+    background_color: "#FFFFFF"

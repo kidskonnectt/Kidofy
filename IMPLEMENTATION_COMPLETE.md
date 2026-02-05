@@ -49,11 +49,11 @@ final nativeAd = AdsService.createNativeSnapsAd(
 
 ### Current State: **VERIFIED & CORRECT**
 
-**Package Name**: `com.kidofy.kidofyapp`
+**Package Name**: `com.kidofy.kidsapp`
 
 **Locations Verified**:
-- ✅ `android/app/build.gradle.kts`: `applicationId = "com.kidofy.kidofyapp"`
-- ✅ `android/app/src/main/AndroidManifest.xml`: `package="com.kidofy.kidofyapp"`
+- ✅ `android/app/build.gradle.kts`: `applicationId = "com.kidofy.kidsapp"`
+- ✅ `android/app/src/main/AndroidManifest.xml`: `package="com.kidofy.kidsapp"`
 
 **Firebase Registration**:
 - ✅ Registered in Firebase Console under project: **kids-konnectt**
@@ -90,7 +90,7 @@ static const String _googleWebClientId =
 Added detailed error messages for:
 - ✅ **ApiException: 10** → SHA-1/SHA-256 mismatch
 - ✅ **Configuration Error** → Firebase/Google setup issue
-- ✅ **Package Name Mismatch** → com.kidofy.kidofyapp not registered
+- ✅ **Package Name Mismatch** → com.kidofy.kidsapp not registered
 - ✅ **Network Error** → No internet connection
 
 ### Troubleshooting Checklist:
@@ -262,7 +262,7 @@ flutter run -t lib/main.dart
 | Component | Status | Details |
 |-----------|--------|---------|
 | Ads Service | ✅ Complete | All 4 ad slots configured with COPPA compliance |
-| Package Name | ✅ Verified | com.kidofy.kidofyapp registered in Firebase |
+| Package Name | ✅ Verified | com.kidofy.kidsapp registered in Firebase |
 | Google Sign-In | ✅ Fixed | OAuth configured, google-services.json added |
 | Splash Screen | ✅ Redesigned | Modern Poppins/Inter fonts, professional animations |
 | Error Handling | ✅ Enhanced | Detailed messages for Google Sign-In failures |

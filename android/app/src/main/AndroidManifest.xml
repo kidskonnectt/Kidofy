@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.kidofy.kidofyapp">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.kidofy.kidsapp">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
@@ -9,10 +9,11 @@
     <application
         android:label="Kidofy"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/adaptive_icon"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-2428967748052842~1409514429" />
+            android:value="ca-app-pub-9631152544509905~3488703613" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

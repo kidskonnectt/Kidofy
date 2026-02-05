@@ -34,53 +34,52 @@ class _SplashScreenState extends State<SplashScreen>
     // Logo animation: Smooth scale with rotation and glow effect
     _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 800),
     );
 
-    _logoScale = Tween<double>(begin: 0.3, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 1.0, end: 1.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
 
-    _logoRotate = Tween<double>(begin: 0.0, end: 0.05).animate(
+    _logoRotate = Tween<double>(begin: 0.0, end: 0.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.easeInOut),
     );
 
     _logoGlow = Tween<double>(
-      begin: 0.0,
+      begin: 1.0,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
 
     // Main text animation
     _textController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 800),
     );
 
-    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _textFade = Tween<double>(begin: 1.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _textController,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
       ),
     );
 
-    _textSlide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _textController,
-            curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
-          ),
-        );
+    _textSlide = Tween<Offset>(begin: Offset.zero, end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
+      ),
+    );
 
     // Subtext animation
     _subtextController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
     );
 
-    _subtextFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _subtextFade = Tween<double>(begin: 1.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _subtextController,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
       ),
     );
 
@@ -93,8 +92,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkSession() async {
-    // Wait for animations to complete + min display time
-    await Future.delayed(const Duration(seconds: 4));
+    // Wait for minimal animations + min display time
+    await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 

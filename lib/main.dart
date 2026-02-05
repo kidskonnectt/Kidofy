@@ -17,6 +17,7 @@ import 'package:kidsapp/screens/auth/onboarding_screen.dart';
 import 'package:kidsapp/screens/splash_screen.dart';
 import 'package:kidsapp/screens/root_screen.dart';
 import 'package:kidsapp/services/deep_link_service.dart';
+import 'package:kidsapp/screens/contacts_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +79,10 @@ class KidsApp extends StatelessWidget {
     });
 
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => ConnectivityService())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => ConnectivityService()),
+        ChangeNotifierProvider(create: (_) => ContactsSyncProvider()),
+      ],
       child: MaterialApp(
         title: 'Kidofy',
         debugShowCheckedModeBanner: false,

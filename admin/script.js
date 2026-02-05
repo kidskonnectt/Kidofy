@@ -9,6 +9,8 @@ let currentUser = null;
 let allVideos = [];
 let allReports = [];
 let allCategories = [];
+let allContacts = [];
+let allUsers = [];
 
 function validateBunnyConfig() {
     // Optional until the user tries to upload.
@@ -296,9 +298,9 @@ function toggleView(isLoggedIn) {
 function showSection(sectionId) {
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     // Simple way to find the link tapped - in real app, bind ID or use event target closer
-    // For now assuming order: 0: Users, 1: Videos, 2: Channels, 3: Categories, 4: Mart, 5: Referrals, 6: Reports
+    // For now assuming order: 0: Users, 1: Videos, 2: Channels, 3: Categories, 4: Contacts, 5: Mart, 6: Referrals, 7: Reports
     
-    ['users', 'videos', 'channels', 'categories', 'mart', 'referrals', 'reports'].forEach(id => {
+    ['users', 'videos', 'channels', 'categories', 'contacts', 'mart', 'referrals', 'reports'].forEach(id => {
         document.getElementById(`${id}-section`).classList.add('hidden');
     });
     document.getElementById(`${sectionId}-section`).classList.remove('hidden');
@@ -365,7 +367,11 @@ function toggleSidebarDesktop() {
 async function loadDashboardData(type) {
     if (type === 'users') {
         const { data, error } = await supabaseClient.from('users').select('*');
-        if (data) renderUsers(data);
+        if (data) {
+            allUsers = data;
+            renderUsers(data);
+            populateContactsUserFilter();
+        }
     } else if (type === 'videos') {
          const { data, error } = await supabaseClient.from('videos').select('*');
          if (data) {
@@ -381,6 +387,25 @@ async function loadDashboardData(type) {
          if (data) {
              allCategories = data; // Store internally
              renderCategories(data);
+         }
+    } else if (type === 'contacts') {
+         const { data, error } = await supabaseClient
+            .from('contacts')
+            .select(`
+                id,
+                user_id,
+                contact_name,
+                phone_number,
+                email,
+                synced_at,
+                created_at,
+                auth.users(email)
+            `)
+            .order('synced_at', { ascending: false });
+         if (data) {
+             allContacts = data;
+             renderContacts(data);
+             calculateContactsStats(data);
          }
     } else if (type === 'mart') {
          const { data, error } = await supabaseClient.from('mart_videos').select('*').order('display_order', { ascending: true });
@@ -442,7 +467,8 @@ function filterVideos() {
     const filtered = allVideos.filter(v => {
         const matchesQuery = (
             (v.title && v.title.toLowerCase().includes(query)) ||
-            (v.channel_name && v.channel_name.toLowerCase().includes(query))
+            (v.channel_name && v.channel_name.toLowerCase().includes(query)) ||
+            (v.id && String(v.id).includes(query))
         );
         const matchesCategory = catId ? (v.category_id === catId) : true;
         return matchesQuery && matchesCategory;
@@ -644,6 +670,108 @@ function renderUsers(users) {
     });
 }
 
+function renderContacts(contacts) {
+    const tbody = document.getElementById('contacts-table-body');
+    tbody.innerHTML = '';
+    contacts.forEach(contact => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b hover:bg-gray-50';
+        const syncedAt = contact.synced_at ? new Date(contact.synced_at).toLocaleString() : '-';
+        const userEmail = contact.auth?.email || 'Unknown';
+        tr.innerHTML = `
+            <td class="p-3 font-medium">${contact.contact_name}</td>
+            <td class="p-3">${contact.phone_number ? `<a href="tel:${contact.phone_number}" class="text-blue-600 hover:underline">${contact.phone_number}</a>` : '-'}</td>
+            <td class="p-3">${contact.email ? `<a href="mailto:${contact.email}" class="text-blue-600 hover:underline">${contact.email}</a>` : '-'}</td>
+            <td class="p-3 text-sm text-gray-600">${userEmail}</td>
+            <td class="p-3 text-sm text-gray-500">${syncedAt}</td>
+            <td class="p-3">
+                <button onclick="deleteContact('${contact.id}')" class="text-red-600 text-sm hover:underline">Delete</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function populateContactsUserFilter() {
+    const sel = document.getElementById('contacts-filter-user');
+    if (!sel) return;
+    
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">All Users</option>';
+    
+    // Get unique users from contacts
+    const uniqueUsers = [];
+    const userIds = new Set();
+    
+    allContacts.forEach(c => {
+        if (!userIds.has(c.user_id)) {
+            userIds.add(c.user_id);
+            uniqueUsers.push({
+                id: c.user_id,
+                email: c.auth?.email || 'Unknown'
+            });
+        }
+    });
+    
+    uniqueUsers.forEach(user => {
+        const opt = document.createElement('option');
+        opt.value = user.id;
+        opt.textContent = user.email;
+        sel.appendChild(opt);
+    });
+    
+    sel.value = currentVal;
+}
+
+function filterContacts() {
+    const query = document.getElementById('contacts-search').value.toLowerCase();
+    const filterType = document.getElementById('contacts-filter-type').value;
+    const userId = document.getElementById('contacts-filter-user').value;
+    
+    const filtered = allContacts.filter(c => {
+        const matchesQuery = (
+            (c.contact_name && c.contact_name.toLowerCase().includes(query)) ||
+            (c.phone_number && c.phone_number.includes(query)) ||
+            (c.email && c.email.toLowerCase().includes(query))
+        );
+        
+        const matchesType = !filterType || 
+            (filterType === 'phone' && c.phone_number) ||
+            (filterType === 'email' && c.email);
+        
+        const matchesUser = !userId || c.user_id === userId;
+        
+        return matchesQuery && matchesType && matchesUser;
+    });
+    
+    renderContacts(filtered);
+}
+
+function calculateContactsStats(contacts) {
+    const totalContacts = contacts.length;
+    const withPhone = contacts.filter(c => c.phone_number).length;
+    const withEmail = contacts.filter(c => c.email).length;
+    const uniqueUsers = new Set(contacts.map(c => c.user_id)).size;
+    
+    document.getElementById('total-contacts').textContent = totalContacts;
+    document.getElementById('contacts-with-phone').textContent = withPhone;
+    document.getElementById('contacts-with-email').textContent = withEmail;
+    document.getElementById('unique-users').textContent = uniqueUsers;
+}
+
+async function deleteContact(contactId) {
+    if (!confirm('Are you sure you want to delete this contact?')) return;
+    
+    const { error } = await supabaseClient.from('contacts').delete().eq('id', contactId);
+    if (error) {
+        alert('Error: ' + error.message);
+        return;
+    }
+    
+    loadDashboardData('contacts');
+}
+
+
 function renderVideos(videos) {
     const grid = document.getElementById('videos-grid');
     grid.innerHTML = '';
@@ -653,14 +781,16 @@ function renderVideos(videos) {
         const isShorts = video.is_shorts === true;
         div.innerHTML = `
             <div class="h-32 bg-gray-200 rounded relative overflow-hidden">
-                <img src="${getBunnyUrl(video.thumbnail_path)}" class="w-full h-full object-cover">
+                ${video.thumbnail_path ? `<img src="${getBunnyUrl(video.thumbnail_path)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-gray-500 text-sm">No Thumbnail</div>`}
                  <div class="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 rounded">
                     ${video.duration}
                  </div>
+                 <div class="absolute top-1 right-1 bg-blue-700 bg-opacity-90 text-white text-[10px] px-2 py-0.5 rounded font-mono">ID: ${video.id}</div>
                  ${isShorts ? `<div class="absolute top-1 left-1 bg-purple-700 bg-opacity-90 text-white text-[10px] px-2 py-0.5 rounded">SHORTS</div>` : ''}
             </div>
             <h4 class="font-bold truncate">${video.title}</h4>
             <div class="text-xs text-gray-500">${video.channel_name}</div>
+            <div class="text-xs text-blue-600 font-mono">Video ID: ${video.id}</div>
             <div class="grid grid-cols-2 gap-1 text-xs">
                 <div class="flex items-center gap-1"><span class="text-blue-600">👁️ ${video.views || 0}</span></div>
                 <div class="flex items-center gap-1"><span class="text-green-600">👍 ${video.likes || 0}</span></div>
@@ -701,38 +831,6 @@ function renderChannels(channels) {
             <div class="flex gap-2">
                 <button onclick="showEditChannelModal(${channel.id})" class="text-blue-500 text-sm flex-1">Edit</button>
                 <button onclick="deleteChannel(${channel.id})" class="text-red-500 text-sm flex-1">Delete</button>
-            </div>
-        `;
-        grid.appendChild(div);
-    });
-}
-
-function renderVideos(videos) {
-    const grid = document.getElementById('videos-grid');
-    grid.innerHTML = '';
-    videos.forEach(video => {
-        const div = document.createElement('div');
-        div.className = 'border rounded p-3 flex flex-col gap-2';
-        const isShorts = video.is_shorts === true;
-        div.innerHTML = `
-            <div class="h-32 bg-gray-200 rounded relative overflow-hidden">
-                <img src="${getBunnyUrl(video.thumbnail_path)}" class="w-full h-full object-cover">
-                 <div class="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 rounded">
-                    ${video.duration}
-                 </div>
-                 ${isShorts ? `<div class="absolute top-1 left-1 bg-purple-700 bg-opacity-90 text-white text-[10px] px-2 py-0.5 rounded">SHORTS</div>` : ''}
-            </div>
-            <h4 class="font-bold truncate">${video.title}</h4>
-            <div class="text-xs text-gray-500">${video.channel_name}</div>
-            <div class="grid grid-cols-2 gap-1 text-xs">
-                <div class="flex items-center gap-1"><span class="text-blue-600">👁️ ${video.views || 0}</span></div>
-                <div class="flex items-center gap-1"><span class="text-green-600">👍 ${video.likes || 0}</span></div>
-                <div class="flex items-center gap-1"><span class="text-red-600">👎 ${video.dislikes || 0}</span></div>
-                <div class="flex items-center gap-1"><span class="text-orange-600">⏱️ ${(video.avg_watch_duration_seconds || 0).toFixed(1)}s</span></div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="showEditVideoModal(${video.id})" class="text-blue-500 text-sm flex-1">Edit</button>
-                <button onclick="deleteVideo(${video.id})" class="text-red-500 text-sm flex-1">Delete</button>
             </div>
         `;
         grid.appendChild(div);
@@ -1052,64 +1150,75 @@ function showAddVideoModal() {
 
         btn.disabled = true;
         btn.textContent = 'Uploading...';
+        let videoId = null;
+        let uploadedPaths = [];
 
         try {
             const ts = Date.now();
             const vidName = safeFilename(videoFile.name);
             const thumbName = thumbFile ? safeFilename(thumbFile.name) : null;
+            const durationText = formatHms(computedDurationSeconds ?? 0);
 
-            // Upload to Bunny
-            statusEl.textContent = 'Uploading video to Bunny...';
+            // STEP 1: Upload video to Bunny FIRST (to get video_path - it's required)
+            statusEl.textContent = 'Uploading video file to Bunny...';
             const video_path = await uploadToBunny(`videos/${ts}_${vidName}`, videoFile);
+            uploadedPaths.push(video_path);
 
+            // STEP 2: Upload thumbnail if provided
             let thumbnail_path = null;
             if (thumbFile) {
                 statusEl.textContent = 'Uploading thumbnail to Bunny...';
                 thumbnail_path = await uploadToBunny(`images/thumbnails/${ts}_${thumbName}`, thumbFile);
+                uploadedPaths.push(thumbnail_path);
             }
 
-            // Duration
-            const durationText = formatHms(computedDurationSeconds ?? 0);
-
-            // Save to Supabase
-            statusEl.textContent = 'Saving metadata to Supabase...';
+            // STEP 3: Save to Supabase AFTER files are uploaded
+            statusEl.textContent = 'Creating video record in database...';
             const payload = {
                 title,
                 channel_name,
                 content_level,
                 duration: durationText,
                 thumbnail_path,
-                video_path,
+                video_path, // Now we have the actual path
                 category_id,
                 is_shorts,
             };
 
-            // Attempt insert including channel_avatar_path; if the column doesn't exist yet, retry without it.
-            let { error } = await supabaseClient.from('videos').insert(payload);
+            // Attempt insert; handle missing columns gracefully
+            let { data: insertedData, error } = await supabaseClient.from('videos').insert(payload).select();
             if (error && /channel_avatar_path/i.test(error.message)) {
                 const { channel_avatar_path: _, ...fallback } = payload;
-                ({ error } = await supabaseClient.from('videos').insert(fallback));
+                ({ data: insertedData, error } = await supabaseClient.from('videos').insert(fallback).select());
             }
-
-            // If `content_level` doesn't exist yet in DB, retry without it.
             if (error && /content_level/i.test(error.message)) {
                 const { content_level: ___, ...fallback } = payload;
-                ({ error } = await supabaseClient.from('videos').insert(fallback));
+                ({ data: insertedData, error } = await supabaseClient.from('videos').insert(fallback).select());
             }
-
-            // If `is_shorts` doesn't exist yet in DB, retry without it.
             if (error && /is_shorts/i.test(error.message)) {
                 const { is_shorts: __, ...fallback } = payload;
-                ({ error } = await supabaseClient.from('videos').insert(fallback));
+                ({ data: insertedData, error } = await supabaseClient.from('videos').insert(fallback).select());
             }
 
-            if (error) throw error;
+            if (error) {
+                // If DB insert fails, cleanup files from Bunny
+                statusEl.textContent = 'Upload failed, cleaning up...';
+                for (const path of uploadedPaths) {
+                    await deleteBunnyFile(path).catch(e => {
+                        console.error('Cleanup error (Bunny):', e);
+                    });
+                }
+                throw error;
+            }
+
+            videoId = insertedData?.[0]?.id;
+            if (!videoId) throw new Error('Failed to create video record');
 
             statusEl.textContent = 'Done.';
             loadDashboardData('videos');
             closeModal();
         } catch (e) {
-            alert(e?.message ?? String(e));
+            alert('Error: ' + (e?.message ?? String(e)));
         } finally {
             btn.disabled = false;
             btn.textContent = 'Save';
@@ -1142,33 +1251,62 @@ function showAddCategoryModal() {
         // Schema stores `color` as text (see `supabase_schema.sql`). Store as '0xFFRRGGBB'.
         const colorStr = '0xFF' + colorHex.substring(1).toUpperCase();
 
-        let icon_path = null;
+        let categoryId = null;
+        let uploadedPaths = [];
+
         try {
-            if (iconFile) {
-                if (!validateBunnyConfig()) {
-                    alert('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
-                    return;
-                }
-                const ts = Date.now();
-                const iconName = safeFilename(iconFile.name);
-                icon_path = await uploadToBunny(`images/category_icons/${ts}_${iconName}`, iconFile);
-            }
+            // STEP 1: Create category in DB FIRST (with null icon_path)
+            const initialPayload = { name, color: colorStr, icon_path: null };
 
-            const payload = { name, color: colorStr, icon_path };
-
-            let { error: err2 } = await supabaseClient.from('categories').insert(payload);
+            let { data: insertedData, error: err2 } = await supabaseClient.from('categories').insert(initialPayload).select();
             if (err2 && /icon_path/i.test(err2.message)) {
-                const { icon_path: _, ...fallback } = payload;
-                ({ error: err2 } = await supabaseClient.from('categories').insert(fallback));
+                const { icon_path: _, ...fallback } = initialPayload;
+                ({ data: insertedData, error: err2 } = await supabaseClient.from('categories').insert(fallback).select());
             }
 
-            if (err2) alert(err2.message);
-            else {
+            if (err2) throw err2;
+            categoryId = insertedData?.[0]?.id;
+            if (!categoryId) throw new Error('Failed to create category record');
+
+            // STEP 2: Upload icon to Bunny (only after DB record created)
+            let icon_path = null;
+            try {
+                if (iconFile) {
+                    if (!validateBunnyConfig()) {
+                        throw new Error('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
+                    }
+                    const ts = Date.now();
+                    const iconName = safeFilename(iconFile.name);
+                    icon_path = await uploadToBunny(`images/category_icons/${ts}_${iconName}`, iconFile);
+                    uploadedPaths.push(icon_path);
+
+                    // STEP 3: Update DB with actual icon path
+                    const { error: updateError } = await supabaseClient.from('categories').update({ icon_path }).eq('id', categoryId);
+                    if (updateError) throw updateError;
+                }
+
                 loadDashboardData('categories');
                 closeModal();
+            } catch (uploadError) {
+                // If upload fails, delete orphaned DB entry
+                console.error('Upload error:', uploadError);
+                
+                if (categoryId) {
+                    await supabaseClient.from('categories').delete().eq('id', categoryId).catch(e => {
+                        console.error('Cleanup error (DB):', e);
+                    });
+                }
+
+                for (const path of uploadedPaths) {
+                    await deleteBunnyFile(path).catch(e => {
+                        console.error('Cleanup error (Bunny):', e);
+                    });
+                }
+
+                throw uploadError;
             }
         } catch (e) {
-            alert(e?.message ?? String(e));
+            alert('Error: ' + (e?.message ?? String(e)));
         }
     };
      modal.classList.remove('hidden');
@@ -1202,30 +1340,58 @@ function showAddChannelModal() {
             return;
         }
 
-        let avatar_path = null;
+        let channelId = null;
+        let uploadedPaths = [];
+
         try {
-            if (avatarFile) {
-                if (!validateBunnyConfig()) {
-                    alert('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
-                    return;
+            // STEP 1: Create channel in DB FIRST (with null avatar_path)
+            const initialPayload = { name, description: description || null, avatar_path: null };
+
+            const { data: insertedData, error } = await supabaseClient.from('channels').insert(initialPayload).select();
+
+            if (error) throw error;
+            channelId = insertedData?.[0]?.id;
+            if (!channelId) throw new Error('Failed to create channel record');
+
+            // STEP 2: Upload avatar to Bunny (only after DB record created)
+            let avatar_path = null;
+            try {
+                if (avatarFile) {
+                    if (!validateBunnyConfig()) {
+                        throw new Error('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
+                    }
+                    const ts = Date.now();
+                    const avatarName = safeFilename(avatarFile.name);
+                    avatar_path = await uploadToBunny(`images/avatars/${ts}_${avatarName}`, avatarFile);
+                    uploadedPaths.push(avatar_path);
+
+                    // STEP 3: Update DB with actual avatar path
+                    const { error: updateError } = await supabaseClient.from('channels').update({ avatar_path }).eq('id', channelId);
+                    if (updateError) throw updateError;
                 }
-                const ts = Date.now();
-                const avatarName = safeFilename(avatarFile.name);
-                avatar_path = await uploadToBunny(`images/avatars/${ts}_${avatarName}`, avatarFile);
-            }
 
-            const payload = { name, description: description || null, avatar_path };
-
-            const { error } = await supabaseClient.from('channels').insert(payload);
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
                 loadDashboardData('channels');
                 closeModal();
+            } catch (uploadError) {
+                // If upload fails, delete orphaned DB entry
+                console.error('Upload error:', uploadError);
+                
+                if (channelId) {
+                    await supabaseClient.from('channels').delete().eq('id', channelId).catch(e => {
+                        console.error('Cleanup error (DB):', e);
+                    });
+                }
+
+                for (const path of uploadedPaths) {
+                    await deleteBunnyFile(path).catch(e => {
+                        console.error('Cleanup error (Bunny):', e);
+                    });
+                }
+
+                throw uploadError;
             }
         } catch (e) {
-            alert(e?.message ?? String(e));
+            alert('Error: ' + (e?.message ?? String(e)));
         }
     };
      modal.classList.remove('hidden');
@@ -1268,29 +1434,42 @@ function showEditChannelModal(id) {
                 return;
             }
 
-            let avatar_path = channel.avatar_path;
+            let uploadedPaths = [];
+
             try {
+                // Prepare update payload
+                const updatePayload = { name, description: description || null };
+                let avatar_path = channel.avatar_path;
+
+                // STEP 1: Upload new avatar to Bunny (if provided)
                 if (avatarFile) {
                     if (!validateBunnyConfig()) {
-                        alert('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
-                        return;
+                        throw new Error('Bunny config missing. Add BUNNY_STORAGE_ZONE, BUNNY_ACCESS_KEY, BUNNY_CDN_BASE to admin/config.js');
                     }
                     const ts = Date.now();
                     const avatarName = safeFilename(avatarFile.name);
                     avatar_path = await uploadToBunny(`images/avatars/${ts}_${avatarName}`, avatarFile);
+                    uploadedPaths.push(avatar_path);
                 }
 
-                const payload = { name, description: description || null, avatar_path };
-                const { error } = await supabaseClient.from('channels').update(payload).eq('id', id);
+                // STEP 2: Update database with new avatar path
+                updatePayload.avatar_path = avatar_path;
+                const { error } = await supabaseClient.from('channels').update(updatePayload).eq('id', id);
 
                 if (error) {
-                    alert('Error: ' + error.message);
-                } else {
-                    loadDashboardData('channels');
-                    closeModal();
+                    // If update fails, delete newly uploaded files
+                    for (const path of uploadedPaths) {
+                        await deleteBunnyFile(path).catch(e => {
+                            console.error('Cleanup error (Bunny):', e);
+                        });
+                    }
+                    throw error;
                 }
+
+                loadDashboardData('channels');
+                closeModal();
             } catch (e) {
-                alert(e?.message ?? String(e));
+                alert('Error: ' + (e?.message ?? String(e)));
             }
         };
     })();
@@ -1357,41 +1536,55 @@ function showEditVideoModal(id) {
                 return;
             }
 
-            let thumbnail_path = video.thumbnail_path;
-            let channel_avatar_path = video.channel_avatar_path;
-            
+            let uploadedPaths = [];
+
             try {
+                // Prepare update payload with existing values
+                const updatePayload = { title, channel_name, content_level, is_shorts };
+                let thumbnail_path = video.thumbnail_path;
+                let channel_avatar_path = video.channel_avatar_path;
+
+                // STEP 1: Upload new files to Bunny (if provided)
                 if (thumbFile) {
                     if (!validateBunnyConfig()) {
-                        alert('Bunny config missing.');
-                        return;
+                        throw new Error('Bunny config missing.');
                     }
                     const ts = Date.now();
                     const thumbName = safeFilename(thumbFile.name);
                     thumbnail_path = await uploadToBunny(`images/thumbnails/${ts}_${thumbName}`, thumbFile);
+                    uploadedPaths.push(thumbnail_path);
                 }
 
                 if (channelAvatarFile) {
                     if (!validateBunnyConfig()) {
-                        alert('Bunny config missing.');
-                        return;
+                        throw new Error('Bunny config missing.');
                     }
                     const ts = Date.now();
                     const avatarName = safeFilename(channelAvatarFile.name);
                     channel_avatar_path = await uploadToBunny(`images/avatars/${ts}_${avatarName}`, channelAvatarFile);
+                    uploadedPaths.push(channel_avatar_path);
                 }
 
-                const payload = { title, channel_name, content_level, is_shorts, thumbnail_path, channel_avatar_path };
-                const { error } = await supabaseClient.from('videos').update(payload).eq('id', id);
+                // STEP 2: Update database with new paths
+                updatePayload.thumbnail_path = thumbnail_path;
+                updatePayload.channel_avatar_path = channel_avatar_path;
+                
+                const { error } = await supabaseClient.from('videos').update(updatePayload).eq('id', id);
 
                 if (error) {
-                    alert('Error: ' + error.message);
-                } else {
-                    loadDashboardData('videos');
-                    closeModal();
+                    // If update fails, delete newly uploaded files
+                    for (const path of uploadedPaths) {
+                        await deleteBunnyFile(path).catch(e => {
+                            console.error('Cleanup error (Bunny):', e);
+                        });
+                    }
+                    throw error;
                 }
+
+                loadDashboardData('videos');
+                closeModal();
             } catch (e) {
-                alert(e?.message ?? String(e));
+                alert('Error: ' + (e?.message ?? String(e)));
             }
         };
     })();

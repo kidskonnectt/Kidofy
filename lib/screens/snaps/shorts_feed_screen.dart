@@ -149,8 +149,7 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
   void _onPageChanged(int index) {
     setState(() {
       _focusedIndex = index;
-      _showControls = true;
-      _startHideTimer();
+      _showControls = false;
     });
 
     _controllers[index - 1]?.pause();
@@ -175,14 +174,24 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
   void _focusPlayback() {
     final controller = _controllers[_focusedIndex];
     if (controller != null && controller.value.isInitialized) {
-      controller.play();
+      if (controller.value.isPlaying) {
+        controller.pause();
+        if (mounted) {
+          setState(() {
+            _showControls = true;
+          });
+          _startHideTimer();
+        }
+      } else {
+        controller.play();
+        if (mounted) {
+          setState(() {
+            _showControls = false;
+          });
+        }
+      }
     } else {
       _initializeControllerAtIndex(_focusedIndex);
-    }
-    if (mounted) {
-      setState(() {
-        _showControls = false;
-      });
     }
   }
 
