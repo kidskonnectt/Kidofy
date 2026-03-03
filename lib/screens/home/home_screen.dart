@@ -14,6 +14,8 @@ import 'package:kidsapp/services/supabase_service.dart';
 import 'package:kidsapp/services/profile_local_store.dart';
 import 'package:kidsapp/utils/content_level.dart';
 import 'package:kidsapp/models/channel_list_item.dart';
+import 'package:provider/provider.dart';
+import 'package:kidsapp/providers/premium_notifier.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -84,11 +86,15 @@ class _HomeScreenState extends State<HomeScreen> {
       // Ignore refresh errors; still reset UI.
     }
     if (!mounted) return;
+
+    final profile = MockData.currentProfile.value;
+    if (profile == null) return;
+
     setState(() {
       _visibleCount = _pageSize;
       _shuffleNonce++;
+      _blockedFuture = SupabaseService.getBlockedContent(profile.id);
     });
-    _onProfileChanged();
   }
 
   Future<void> _blockVideo(String videoId) async {
@@ -195,117 +201,128 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
 
-        return Scaffold(
-          extendBodyBehindAppBar: false,
-          appBar: KidAppBar(
-            onProfileTap: () {
-              // Navigate to profile/settings
-              Navigator.pushNamed(context, '/settings');
-            },
-            onSearchTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              );
-            },
-          ),
-          body: Column(
-            children: [
-              const SizedBox(height: 20),
-              CategorySelector(
-                selectedCategoryId: selectedCategoryId,
-                onCategorySelected: (id) {
-                  setState(() {
-                    selectedCategoryId = id;
-                  });
+        return Consumer<PremiumNotifier>(
+          builder: (context, premiumNotifier, _) {
+            return Scaffold(
+              extendBodyBehindAppBar: false,
+              appBar: KidAppBar(
+                onProfileTap: () {
+                  // Navigate to profile/settings
+                  Navigator.pushNamed(context, '/settings');
                 },
+                onSearchTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  );
+                },
+                onPremiumTap: () {
+                  Navigator.pushNamed(context, '/premium');
+                },
+                isPremium: premiumNotifier.hasActivePremium,
+                daysRemaining: premiumNotifier.daysRemaining,
               ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refresh,
-                  color: AppColors.primaryRed,
-                  child: listItems.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 80),
-                            Center(
-                              child: Text(
-                                'No videos found in this category.',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          ],
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.only(bottom: 20),
-                          itemCount: listItems.length,
-                          itemBuilder: (context, index) {
-                            final item = listItems[index];
+              body: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  CategorySelector(
+                    selectedCategoryId: selectedCategoryId,
+                    onCategorySelected: (id) {
+                      setState(() {
+                        selectedCategoryId = id;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _refresh,
+                      color: AppColors.primaryRed,
+                      child: listItems.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 80),
+                                Center(
+                                  child: Text(
+                                    'No videos found in this category.',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(bottom: 20),
+                              itemCount: listItems.length,
+                              itemBuilder: (context, index) {
+                                final item = listItems[index];
 
-                            if (item is ChannelListItem) {
-                              final channelName = item.channelName;
-                              // Check if channel blocked
-                              if (blocked.channelNames.contains(channelName)) {
-                                return const SizedBox.shrink();
-                              }
+                                if (item is ChannelListItem) {
+                                  final channelName = item.channelName;
+                                  // Check if channel blocked
+                                  if (blocked.channelNames.contains(
+                                    channelName,
+                                  )) {
+                                    return const SizedBox.shrink();
+                                  }
 
-                              return ChannelCard(
-                                channelName: channelName,
-                                channelAvatarUrl: item.channelAvatarUrl,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChannelScreen(
-                                        channelName: channelName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onBlock: () => _blockChannel(channelName),
-                              );
-                            }
-
-                            final video = item as Video;
-                            return VideoCard(
-                                  video: video,
-                                  onBlock: () => _blockVideo(video.id),
-                                  onTap: () {
-                                    final profile =
-                                        MockData.currentProfile.value;
-                                    if (profile != null) {
-                                      ProfileLocalStore.recordWatchedVideo(
-                                        profile.id,
-                                        video.id,
+                                  return ChannelCard(
+                                    channelName: channelName,
+                                    channelAvatarUrl: item.channelAvatarUrl,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ChannelScreen(
+                                            channelName: channelName,
+                                          ),
+                                        ),
                                       );
-                                    }
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            VideoPlayerScreen(video: video),
-                                      ),
+                                    },
+                                    onBlock: () => _blockChannel(channelName),
+                                  );
+                                }
+
+                                final video = item as Video;
+                                return VideoCard(
+                                      video: video,
+                                      onBlock: () => _blockVideo(video.id),
+                                      onTap: () {
+                                        final profile =
+                                            MockData.currentProfile.value;
+                                        if (profile != null) {
+                                          ProfileLocalStore.recordWatchedVideo(
+                                            profile.id,
+                                            video.id,
+                                          );
+                                        }
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                VideoPlayerScreen(video: video),
+                                          ),
+                                        );
+                                      },
+                                    )
+                                    .animate()
+                                    .fade(duration: 400.ms)
+                                    .slideY(
+                                      begin: 0.1,
+                                      end: 0,
+                                      curve: Curves.easeOutQuad,
+                                      delay: Duration(milliseconds: 100),
                                     );
-                                  },
-                                )
-                                .animate()
-                                .fade(duration: 400.ms)
-                                .slideY(
-                                  begin: 0.1,
-                                  end: 0,
-                                  curve: Curves.easeOutQuad,
-                                  delay: Duration(milliseconds: 100),
-                                );
-                          },
-                        ),
-                ),
+                              },
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

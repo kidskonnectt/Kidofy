@@ -5,17 +5,20 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:kidsapp/models/mock_data.dart';
 import 'package:kidsapp/services/download_service.dart';
 import 'package:kidsapp/services/interaction_service.dart';
 import 'package:kidsapp/services/ads_service.dart';
-
+import 'package:kidsapp/widgets/in_stream_video_ad.dart';
 import 'package:kidsapp/services/profile_local_store.dart';
 import 'package:kidsapp/theme/app_theme.dart';
 import 'package:kidsapp/widgets/video_card.dart';
 import 'package:kidsapp/screens/snaps/shorts_feed_screen.dart';
 import 'package:kidsapp/utils/content_level.dart';
 import 'package:video_player/video_player.dart';
+import 'package:provider/provider.dart';
+import 'package:kidsapp/providers/premium_notifier.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final Video video;
@@ -45,6 +48,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<Duration> _midRollSchedule = const <Duration>[];
   int _nextMidRollIndex = 0;
 
+  // In-stream ad variables
+  BannerAd? _inStreamAd;
+  bool _inStreamAdVisible = false;
+  bool _currentAdIsSkippable = false;
+
   String? _initError;
 
   bool _liked = false;
@@ -72,10 +80,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _initPlayer() async {
     try {
-      // Warm up ads early so they can show fast.
-      unawaited(AdsService.preloadInterstitial(InterstitialSlot.preRoll));
-      unawaited(AdsService.preloadInterstitial(InterstitialSlot.midRoll));
-      unawaited(AdsService.preloadInterstitial(InterstitialSlot.postRoll));
+      // Check if user has active premium - don't preload ads for premium users
+      final premiumNotifier = context.read<PremiumNotifier>();
+      final hasPremium = premiumNotifier.hasActivePremium;
+
+      if (!hasPremium) {
+        // Only preload ads if user doesn't have premium
+        // Warm up ads early so they can show fast.
+        unawaited(AdsService.preloadInterstitial(InterstitialSlot.midRoll));
+        unawaited(AdsService.preloadInterstitial(InterstitialSlot.postRoll));
+        unawaited(AdsService.preloadInStreamBannerAd());
+      }
 
       // Prefer offline file if downloaded.
       final profile = MockData.currentProfile.value;
@@ -110,11 +125,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _unlockHoldTimer?.cancel();
       _unlockHoldProgress = 0.0;
 
-      // Compute mid-roll schedule (if any).
-      _midRollSchedule = AdsService.midRollScheduleFor(
-        controller.value.duration,
-      );
+      // Compute mid-roll schedule only if user doesn't have premium
+      if (hasPremium) {
+        // Premium users: no mid-roll ads
+        _midRollSchedule = const <Duration>[];
+      } else {
+        // Free users: show mid-roll ads
+        _midRollSchedule = AdsService.midRollScheduleFor(
+          controller.value.duration,
+        );
+      }
       _nextMidRollIndex = 0;
+      _preRollShown = false;
       _postRollShown = false;
       _completionHandled = false;
 
@@ -140,8 +162,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // Task 9: Auto-play immediately
       controller.play();
 
-      // Pre-roll: show before video starts (will pause content if ad shows)
-      await _maybeShowPreRoll();
+      // Pre-roll: In landscape, show as in-stream. In portrait, skip for better UX.
+      // Removed blocking pre-roll for better kids experience
+      // Pre-roll ads will show as in-stream ads during playback if available
 
       // Ensure we are playing after possible ad interaction
       if (mounted &&
@@ -257,21 +280,45 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _startAdChecks() {
     _adCheckTimer?.cancel();
     _adCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _checkPreRoll();
       _checkMidRoll();
       _checkPostRoll();
     });
   }
 
-  Future<void> _maybeShowPreRoll() async {
+  void _checkPreRoll() {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (_showingAd) return;
     if (_preRollShown) return;
-    _preRollShown = true;
-    await _showAdAndResume(slot: InterstitialSlot.preRoll);
+
+    // Skip pre-roll if user has active premium subscription
+    final premiumNotifier = context.read<PremiumNotifier>();
+    if (premiumNotifier.hasActivePremium) {
+      _preRollShown = true;
+      return;
+    }
+
+    // Show pre-roll after video starts playing (position > 0.5 seconds)
+    final pos = c.value.position;
+    if (pos > const Duration(milliseconds: 500)) {
+      _preRollShown = true;
+      unawaited(_showAdAndResume(slot: InterstitialSlot.preRoll));
+    }
   }
 
   void _checkMidRoll() {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
     if (_showingAd) return;
+
+    // Skip mid-roll if user has active premium subscription
+    final premiumNotifier = context.read<PremiumNotifier>();
+    if (premiumNotifier.hasActivePremium) {
+      _nextMidRollIndex = _midRollSchedule.length; // Mark all mid-rolls as done
+      return;
+    }
+
     if (_nextMidRollIndex >= _midRollSchedule.length) return;
 
     final target = _midRollSchedule[_nextMidRollIndex];
@@ -291,6 +338,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (c == null || !c.value.isInitialized) return;
     if (_showingAd) return;
     if (_postRollShown) {
+      return;
+    }
+
+    // Skip post-roll if user has active premium subscription
+    final premiumNotifier = context.read<PremiumNotifier>();
+    if (premiumNotifier.hasActivePremium) {
+      _postRollShown = true;
       return;
     }
 
@@ -318,6 +372,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     _showingAd = true;
     try {
+      // Only show in-stream ads in landscape mode
+      // In portrait mode, use full-screen interstitials
+      if (_isLandscape) {
+        // Landscape: Try to show in-stream banner ad at bottom
+        final bannerAd = await AdsService.loadInStreamBannerAd();
+        if (bannerAd != null && mounted) {
+          // Randomize if this ad is skippable (70% skippable, 30% non-skippable like YouTube)
+          _currentAdIsSkippable = DateTime.now().microsecond.isEven;
+          _inStreamAd = bannerAd;
+          _inStreamAdVisible = true;
+
+          setState(() {});
+          // Wait for the ad widget to handle close via onClosed callback
+          return;
+        }
+      }
+
+      // Portrait mode or banner ad failed: use full-screen interstitial
       if (c.value.isPlaying) {
         await c.pause();
       }
@@ -335,6 +407,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           _completionHandled = true;
           _playNext(ignoreLock: true);
         }
+      }
+    }
+  }
+
+  void _closeInStreamAd() {
+    if (mounted) {
+      setState(() {
+        _inStreamAdVisible = false;
+        _inStreamAd = null;
+        _showingAd = false;
+      });
+      if (_controller != null && !_isVideoEnded(_controller!)) {
+        _controller!.play();
+      } else if (!_completionHandled) {
+        _completionHandled = true;
+        _playNext(ignoreLock: true);
       }
     }
   }
@@ -839,6 +927,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+
+                // In-stream video ad overlay (Landscape only)
+                if (_inStreamAdVisible && _inStreamAd != null && isLandscape)
+                  InStreamVideoAd(
+                    ad: _inStreamAd!,
+                    isSkippable: _currentAdIsSkippable,
+                    onClosed: _closeInStreamAd,
+                    showSkipAfter: Duration(
+                      seconds: 5 + DateTime.now().microsecond % 3,
                     ),
                   ),
               ],

@@ -9,6 +9,7 @@ import 'package:kidsapp/services/supabase_service.dart';
 import 'package:kidsapp/services/ads_service.dart';
 import 'package:kidsapp/services/connectivity_service.dart';
 import 'package:kidsapp/services/push_notifications_service.dart';
+import 'package:kidsapp/services/snaps_preload_service.dart';
 import 'package:kidsapp/screens/parent/parent_gate_screen.dart';
 import 'package:kidsapp/screens/parent/settings_screen.dart';
 import 'package:kidsapp/screens/profile/profile_selection_screen.dart';
@@ -18,6 +19,8 @@ import 'package:kidsapp/screens/splash_screen.dart';
 import 'package:kidsapp/screens/root_screen.dart';
 import 'package:kidsapp/services/deep_link_service.dart';
 import 'package:kidsapp/screens/contacts_screen.dart';
+import 'package:kidsapp/screens/premium/premium_screen.dart';
+import 'package:kidsapp/providers/premium_notifier.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +63,9 @@ Future<void> main() async {
 
   await SupabaseService.initializeData();
 
+  // Start background preloading of first snaps videos
+  SnapsPreloadService.startBackgroundPreload();
+
   runApp(const KidsApp());
 }
 
@@ -82,6 +88,7 @@ class KidsApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ConnectivityService()),
         ChangeNotifierProvider(create: (_) => ContactsSyncProvider()),
+        ChangeNotifierProvider(create: (_) => PremiumNotifier()),
       ],
       child: MaterialApp(
         title: 'Kidofy',
@@ -96,6 +103,7 @@ class KidsApp extends StatelessWidget {
           '/home': (context) => const RootScreen(),
           '/settings': (context) => const ParentGateScreen(),
           '/parent_settings': (context) => const SettingsScreen(),
+          '/premium': (context) => const PremiumScreen(),
         },
       ),
     );

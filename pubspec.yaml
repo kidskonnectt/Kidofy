@@ -1,7 +1,7 @@
 name: kidsapp
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.6+6
+version: 1.0.7+7
 
 environment:
   sdk: ^3.9.2
@@ -32,6 +32,8 @@ dependencies:
   video_thumbnail: ^0.5.6
   flutter_contacts: ^1.1.9+2
   intl: ^0.20.2
+  razorpay_flutter: ^1.4.0
+  uuid: ^4.0.0
 
 dev_dependencies:
   flutter_test:
@@ -49,7 +51,6 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/app_icon.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_background_file: "assets/adaptive_icon_background.png"
   adaptive_icon_foreground: "assets/app_icon_foreground.png"
   remove_alpha_ios: true
   web:

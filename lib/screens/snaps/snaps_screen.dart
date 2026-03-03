@@ -5,9 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:kidsapp/services/ads_service.dart';
 import 'package:kidsapp/services/download_service.dart';
+import 'package:kidsapp/services/supabase_service.dart';
+import 'package:kidsapp/services/snaps_preload_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:kidsapp/services/interaction_service.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:kidsapp/utils/content_level.dart';
 import 'package:kidsapp/theme/app_theme.dart';
 import 'package:kidsapp/services/video_playback_bus.dart';
@@ -30,9 +31,6 @@ class _SnapsScreenState extends State<SnapsScreen> {
   Timer? _hideTimer;
   final Set<int> _autoAdvancedIndices = {};
   late final VoidCallback _pauseListener;
-
-  static const int _adEveryA = 4;
-  static const int _adEveryB = 5;
 
   @override
   void initState() {
@@ -91,13 +89,22 @@ class _SnapsScreenState extends State<SnapsScreen> {
 
     try {
       if (video.videoUrl == null) return;
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(video.videoUrl!),
-      );
+
+      // Try to get preloaded controller first
+      VideoPlayerController? controller =
+          SnapsPreloadService.getPreloadedController(video.id);
+
+      // If no preloaded controller, create new one
+      if (controller == null) {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(video.videoUrl!),
+        );
+        await controller.initialize();
+      }
+
       _controllers[feedIndex] = controller;
-      await controller.initialize();
       await controller.setLooping(false);
-      controller.addListener(() => _handleAutoScroll(feedIndex, controller));
+      controller.addListener(() => _handleAutoScroll(feedIndex));
 
       if (mounted) {
         setState(() {});
@@ -173,11 +180,13 @@ class _SnapsScreenState extends State<SnapsScreen> {
     }
   }
 
-  void _handleAutoScroll(int feedIndex, VideoPlayerController controller) {
+  void _handleAutoScroll(int feedIndex) {
     if (!mounted) return;
     if (_focusedIndex != feedIndex) return;
     if (_autoAdvancedIndices.contains(feedIndex)) return;
-    if (!controller.value.isInitialized) return;
+
+    final controller = _controllers[feedIndex];
+    if (controller == null || !controller.value.isInitialized) return;
     final duration = controller.value.duration;
     if (duration == Duration.zero) return;
 
@@ -211,31 +220,13 @@ class _SnapsScreenState extends State<SnapsScreen> {
   }
 
   bool _isAdIndex(int index) {
-    var pos = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = pos + block;
-      if (index == adPos) return true;
-      if (index < adPos) return false;
-      pos = adPos + 1;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
+    // TODO: Temporarily disabled ads
+    return false;
   }
 
   int _videoIndexForFeedIndex(int index) {
-    var feed = 0;
-    var video = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = feed + block;
-      if (index < adPos) {
-        return video + (index - feed);
-      }
-      video += block;
-      feed = adPos + 1;
-      if (index == adPos) return video;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
+    // Ads disabled, so feed index = video index
+    return index;
   }
 
   Future<void> _toggleLike(Video video) async {
@@ -256,17 +247,6 @@ class _SnapsScreenState extends State<SnapsScreen> {
   // Track likes locally
   final Map<String, bool> _likes = {};
 
-  String _buildShareText(Video video) {
-    final url = 'https://kidofy.in/watch?v=${Uri.encodeComponent(video.id)}';
-    final title = video.title.trim();
-    if (title.isEmpty) return 'Watch on Kidofy: $url';
-    return 'Watch "$title" on Kidofy: $url';
-  }
-
-  Future<void> _shareVideo(Video video) async {
-    await SharePlus.instance.share(ShareParams(text: _buildShareText(video)));
-  }
-
   // ... (existing code)
 
   @override
@@ -285,6 +265,7 @@ class _SnapsScreenState extends State<SnapsScreen> {
       body: PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
+        physics: const BouncingScrollPhysics(),
         onPageChanged: _onPageChanged,
         itemBuilder: (context, index) {
           if (_isAdIndex(index)) {
@@ -437,12 +418,6 @@ class _SnapsScreenState extends State<SnapsScreen> {
                         onTap: () => _toggleLike(video),
                       ),
                       const SizedBox(height: 20),
-                      _ActionButton(
-                        icon: Icons.share, // Task 6
-                        label: 'Share',
-                        onTap: () => _shareVideo(video),
-                      ),
-                      const SizedBox(height: 20),
                       PopupMenuButton<String>(
                         icon: const Icon(
                           Icons.more_vert,
@@ -461,6 +436,48 @@ class _SnapsScreenState extends State<SnapsScreen> {
                               await DownloadService.downloadVideoForCurrentProfile(
                                 video,
                               );
+                            } catch (_) {
+                              // ignore
+                            }
+                            return;
+                          }
+
+                          if (value == 'blockVideo') {
+                            try {
+                              final profile = MockData.currentProfile.value;
+                              if (profile != null) {
+                                await SupabaseService.blockVideo(
+                                  profileId: profile.id,
+                                  videoId: video.id,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Video blocked.'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              // ignore
+                            }
+                            return;
+                          }
+
+                          if (value == 'blockChannel') {
+                            try {
+                              final profile = MockData.currentProfile.value;
+                              if (profile != null) {
+                                await SupabaseService.blockChannel(
+                                  profileId: profile.id,
+                                  channelName: video.channelName,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Channel blocked.'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
                             } catch (_) {
                               // ignore
                             }
@@ -521,6 +538,26 @@ class _SnapsScreenState extends State<SnapsScreen> {
                                 Icon(Icons.download, color: Colors.black),
                                 SizedBox(width: 8),
                                 Text('Download'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'blockVideo',
+                            child: Row(
+                              children: [
+                                Icon(Icons.block, color: Colors.black),
+                                SizedBox(width: 8),
+                                Text('Block Video'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'blockChannel',
+                            child: Row(
+                              children: [
+                                Icon(Icons.block, color: Colors.black),
+                                SizedBox(width: 8),
+                                Text('Block Channel'),
                               ],
                             ),
                           ),
@@ -634,6 +671,11 @@ class _SnapsNativeAdPageState extends State<_SnapsNativeAdPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Only show ad container if ad loaded successfully
+    if (!_loaded || _ad == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       color: Colors.black,
       alignment: Alignment.center,
@@ -641,14 +683,11 @@ class _SnapsNativeAdPageState extends State<_SnapsNativeAdPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (_loaded && _ad != null)
-            SizedBox(
-              width: double.infinity,
-              height: 340,
-              child: AdWidget(ad: _ad!),
-            )
-          else
-            const SizedBox.shrink(),
+          SizedBox(
+            width: double.infinity,
+            height: 340,
+            child: AdWidget(ad: _ad!),
+          ),
           const SizedBox(height: 16),
           const Text(
             'Sponsored',

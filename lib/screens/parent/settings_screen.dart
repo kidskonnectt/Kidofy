@@ -6,8 +6,9 @@ import 'package:kidsapp/screens/settings/help_feedback_screen.dart';
 import 'package:kidsapp/screens/parent/add_kid_screen.dart';
 import 'package:kidsapp/services/supabase_service.dart';
 import 'package:kidsapp/services/profile_local_store.dart';
-import 'package:kidsapp/screens/parent/refer_earn_screen.dart';
+
 import 'package:kidsapp/screens/parent/parent_settings_detail_screen.dart';
+import 'package:kidsapp/screens/premium/premium_screen.dart';
 import 'package:kidsapp/utils/content_level.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -103,15 +104,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => _showBlockedContentManager(),
                     ),
                     _SettingCard(
-                      icon: Icons.card_giftcard,
-                      title: "Refer & Earn",
-                      color: Colors.purpleAccent,
-                      subtitle: "Invite Friends",
+                      icon: Icons.workspace_premium,
+                      title: "Premium",
+                      color: Colors.amber,
+                      subtitle: "Unlock features",
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ReferEarnScreen(),
+                            builder: (_) => const PremiumScreen(),
                           ),
                         );
                       },
@@ -144,32 +145,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (c) {
         final passController = TextEditingController();
+        final answerController = TextEditingController();
+        
         return AlertDialog(
           title: const Text("Parent Passcode"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                MockData.parentPasscode == null
-                    ? "Set a passcode to replace math problems."
-                    : "Update or remove your passcode.",
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passController,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                decoration: const InputDecoration(
-                  hintText: "Enter 4-digit PIN",
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  MockData.parentPasscode == null
+                      ? "Set a passcode to replace math problems."
+                      : "Update or remove your passcode.",
                 ),
-              ),
-            ],
+                const SizedBox(height: 15),
+                TextField(
+                  controller: passController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: "Enter 4-digit PIN",
+                    labelText: "Passcode",
+                  ),
+                ),
+                const SizedBox(height: 15),
+                const Divider(),
+                const SizedBox(height: 15),
+                Text(
+                  "Security Question (for recovery)",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    MockData.parentSecurityQuestion ?? "What is your child first name?",
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: answerController,
+                  decoration: const InputDecoration(
+                    hintText: "Enter your answer",
+                    labelText: "Answer",
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             if (MockData.parentPasscode != null)
               TextButton(
                 onPressed: () {
-                  setState(() => MockData.parentPasscode = null);
+                  setState(() {
+                    MockData.parentPasscode = null;
+                    MockData.parentSecurityAnswer = null;
+                  });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Passcode Removed")),
@@ -181,13 +224,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
               onPressed: () {
-                if (passController.text.length == 4) {
-                  setState(() => MockData.parentPasscode = passController.text);
+                if (passController.text.length == 4 && answerController.text.isNotEmpty) {
+                  setState(() {
+                    MockData.parentPasscode = passController.text;
+                    MockData.parentSecurityAnswer = answerController.text.toLowerCase().trim();
+                  });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(
                     context,
-                  ).showSnackBar(const SnackBar(content: Text("Passcode Set")));
+                  ).showSnackBar(const SnackBar(content: Text("Passcode & Answer Set")));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please enter PIN and answer")),
+                  );
                 }
               },
               child: const Text("Save"),

@@ -10,6 +10,8 @@ import 'package:kidsapp/services/connectivity_service.dart';
 import 'package:kidsapp/services/video_playback_bus.dart';
 import 'package:provider/provider.dart';
 import 'package:kidsapp/screens/tv/tv_root_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:kidsapp/providers/premium_notifier.dart';
 
 class RootScreen extends StatefulWidget {
   final int initialIndex;
@@ -33,7 +35,22 @@ class _RootScreenState extends State<RootScreen> {
         // Auto-select first profile if none selected
         MockData.currentProfile.value = MockData.profiles.first;
       }
+
+      // Initialize premium status for current user
+      _initializePremium();
     });
+  }
+
+  Future<void> _initializePremium() async {
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null && mounted) {
+        final premiumNotifier = context.read<PremiumNotifier>();
+        await premiumNotifier.initializePremium(currentUser.id);
+      }
+    } catch (e) {
+      debugPrint('Error initializing premium: $e');
+    }
   }
 
   @override

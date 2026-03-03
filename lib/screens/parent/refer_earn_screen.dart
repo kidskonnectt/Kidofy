@@ -270,7 +270,7 @@ class _ReferEarnScreenState extends State<ReferEarnScreen> {
           ),
           _step(
             icon: Icons.verified_rounded,
-            title: 'Friend joins Kids App',
+            title: 'Friend joins Kidofy',
             subtitle:
                 'When they sign up using your code, it counts as a referral.',
           ),

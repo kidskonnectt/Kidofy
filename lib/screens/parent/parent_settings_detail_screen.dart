@@ -74,32 +74,74 @@ class _ParentSettingsDetailScreenState
       context: context,
       builder: (c) {
         final passController = TextEditingController();
+        final answerController = TextEditingController();
+        
         return AlertDialog(
           title: const Text('Parent Passcode'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                MockData.parentPasscode == null
-                    ? 'Set a passcode to replace math problems.'
-                    : 'Update or remove your passcode.',
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passController,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                decoration: const InputDecoration(
-                  hintText: 'Enter 4-digit PIN',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  MockData.parentPasscode == null
+                      ? 'Set a passcode to replace math problems.'
+                      : 'Update or remove your passcode.',
                 ),
-              ),
-            ],
+                const SizedBox(height: 15),
+                TextField(
+                  controller: passController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter 4-digit PIN',
+                    labelText: 'Passcode',
+                  ),
+                ),
+                const SizedBox(height: 15),
+                const Divider(),
+                const SizedBox(height: 15),
+                Text(
+                  'Security Question (for recovery)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    MockData.parentSecurityQuestion ?? 'What is your child first name?',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: answerController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your answer',
+                    labelText: 'Answer',
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             if (MockData.parentPasscode != null)
               TextButton(
                 onPressed: () {
-                  setState(() => MockData.parentPasscode = null);
+                  setState(() {
+                    MockData.parentPasscode = null;
+                    MockData.parentSecurityAnswer = null;
+                  });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Passcode Removed')),
@@ -111,13 +153,24 @@ class _ParentSettingsDetailScreenState
                 ),
               ),
             TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
               onPressed: () {
-                if (passController.text.length == 4) {
-                  setState(() => MockData.parentPasscode = passController.text);
+                if (passController.text.length == 4 && answerController.text.isNotEmpty) {
+                  setState(() {
+                    MockData.parentPasscode = passController.text;
+                    MockData.parentSecurityAnswer = answerController.text.toLowerCase().trim();
+                  });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(
                     context,
-                  ).showSnackBar(const SnackBar(content: Text('Passcode Set')));
+                  ).showSnackBar(const SnackBar(content: Text('Passcode & Answer Set')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter PIN and answer')),
+                  );
                 }
               },
               child: const Text('Save'),

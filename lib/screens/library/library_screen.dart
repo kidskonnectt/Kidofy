@@ -88,12 +88,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             labelColor: AppColors.primaryRed,
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppColors.primaryRed,
-            indicatorWeight: 3,
+            indicatorWeight: 4,
             labelStyle: GoogleFonts.fredoka(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            isScrollable: true,
+            isScrollable: false,
+            labelPadding: EdgeInsets.zero,
             tabs: const [
               Tab(text: 'Downloads'),
               Tab(text: 'History'),
@@ -164,7 +165,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 16, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       itemCount: videos.length,
       itemBuilder: (context, index) {
         return VideoCard(

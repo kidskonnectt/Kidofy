@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:kidsapp/services/ads_service.dart';
 import 'package:kidsapp/services/download_service.dart';
+import 'package:kidsapp/services/supabase_service.dart';
+import 'package:kidsapp/services/snaps_preload_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:kidsapp/services/interaction_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -38,9 +40,6 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
   bool _showControls = false;
   Timer? _hideTimer;
   late final VoidCallback _pauseListener;
-
-  static const int _adEveryA = 4;
-  static const int _adEveryB = 5;
 
   @override
   void initState() {
@@ -97,24 +96,8 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
   }
 
   int _feedIndexForVideoIndex(int videoIndex) {
-    if (videoIndex <= 0) return 0;
-
-    var feed = 0;
-    var video = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = feed + block;
-      // video indices covered in this block are [video, video+block)
-      if (videoIndex < video + block) {
-        return feed + (videoIndex - video);
-      }
-      video += block;
-      feed = adPos + 1;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-
-      // Safety.
-      if (feed > 1000000) return videoIndex;
-    }
+    // Ads disabled, so video index = feed index
+    return videoIndex;
   }
 
   Future<void> _initializeControllerAtIndex(int feedIndex) async {
@@ -128,11 +111,20 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
 
     try {
       if (video.videoUrl == null) return;
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(video.videoUrl!),
-      );
+
+      // Try to get preloaded controller first
+      VideoPlayerController? controller =
+          SnapsPreloadService.getPreloadedController(video.id);
+
+      // If no preloaded controller, create new one
+      if (controller == null) {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(video.videoUrl!),
+        );
+        await controller.initialize();
+      }
+
       _controllers[feedIndex] = controller;
-      await controller.initialize();
       await controller.setLooping(true);
 
       if (mounted) {
@@ -220,31 +212,13 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
   }
 
   bool _isAdIndex(int index) {
-    var pos = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = pos + block;
-      if (index == adPos) return true;
-      if (index < adPos) return false;
-      pos = adPos + 1;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
+    // TODO: Temporarily disabled ads
+    return false;
   }
 
   int _videoIndexForFeedIndex(int index) {
-    var feed = 0;
-    var video = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = feed + block;
-      if (index < adPos) {
-        return video + (index - feed);
-      }
-      video += block;
-      feed = adPos + 1;
-      if (index == adPos) return video;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
+    // Ads disabled, so feed index = video index
+    return index;
   }
 
   Future<void> _toggleLike(Video video) async {
@@ -471,6 +445,48 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
                             return;
                           }
 
+                          if (value == 'blockVideo') {
+                            try {
+                              final profile = MockData.currentProfile.value;
+                              if (profile != null) {
+                                await SupabaseService.blockVideo(
+                                  profileId: profile.id,
+                                  videoId: video.id,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Video blocked.'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              // ignore
+                            }
+                            return;
+                          }
+
+                          if (value == 'blockChannel') {
+                            try {
+                              final profile = MockData.currentProfile.value;
+                              if (profile != null) {
+                                await SupabaseService.blockChannel(
+                                  profileId: profile.id,
+                                  channelName: video.channelName,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Channel blocked.'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              // ignore
+                            }
+                            return;
+                          }
+
                           if (value == 'report') {
                             showDialog(
                               context: context,
@@ -525,6 +541,26 @@ class _ShortsFeedScreenState extends State<ShortsFeedScreen> {
                                 Icon(Icons.download, color: Colors.black),
                                 SizedBox(width: 8),
                                 Text('Download'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'blockVideo',
+                            child: Row(
+                              children: [
+                                Icon(Icons.block, color: Colors.black),
+                                SizedBox(width: 8),
+                                Text('Block Video'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'blockChannel',
+                            child: Row(
+                              children: [
+                                Icon(Icons.block, color: Colors.black),
+                                SizedBox(width: 8),
+                                Text('Block Channel'),
                               ],
                             ),
                           ),

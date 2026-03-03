@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:kidsapp/models/mock_data.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:kidsapp/services/ads_service.dart';
 import 'package:kidsapp/services/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kidsapp/theme/app_theme.dart';
@@ -31,9 +29,6 @@ class _MartScreenState extends State<MartScreen> {
   bool _showControls = false;
   Timer? _hideTimer;
   late final VoidCallback _pauseListener;
-
-  static const int _adEveryA = 4;
-  static const int _adEveryB = 5;
 
   @override
   void initState() {
@@ -89,14 +84,11 @@ class _MartScreenState extends State<MartScreen> {
   }
 
   Future<void> _initializeControllerAtIndex(int feedIndex) async {
-    if (_isAdIndex(feedIndex)) return;
-
     if (_controllers.containsKey(feedIndex)) return;
 
-    final videoIndex = _videoIndexForFeedIndex(feedIndex);
-    if (videoIndex >= _martVideos.length) return;
+    if (feedIndex >= _martVideos.length) return;
 
-    final video = _martVideos[videoIndex];
+    final video = _martVideos[feedIndex];
 
     try {
       final controller = VideoPlayerController.networkUrl(
@@ -217,34 +209,6 @@ class _MartScreenState extends State<MartScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  bool _isAdIndex(int index) {
-    var pos = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = pos + block;
-      if (index == adPos) return true;
-      if (index < adPos) return false;
-      pos = adPos + 1;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
-  }
-
-  int _videoIndexForFeedIndex(int index) {
-    var feed = 0;
-    var video = 0;
-    var block = _adEveryA;
-    while (true) {
-      final adPos = feed + block;
-      if (index < adPos) {
-        return video + (index - feed);
-      }
-      video += block;
-      feed = adPos + 1;
-      if (index == adPos) return video;
-      block = (block == _adEveryA) ? _adEveryB : _adEveryA;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -281,14 +245,9 @@ class _MartScreenState extends State<MartScreen> {
         scrollDirection: Axis.vertical,
         // Task 1, 6: Infinity scroll (null itemCount)
         itemBuilder: (context, index) {
-          if (_isAdIndex(index)) {
-            return const _MartNativeAdPage();
-          }
+          if (index >= _martVideos.length) return null; // Stop scrolling
 
-          final videoIndex = _videoIndexForFeedIndex(index);
-          if (videoIndex >= _martVideos.length) return null; // Stop scrolling
-
-          final video = _martVideos[videoIndex];
+          final video = _martVideos[index];
           final controller = _controllers[index];
           final isLoading =
               controller == null ||
@@ -402,76 +361,6 @@ class _MartScreenState extends State<MartScreen> {
             const SizedBox(height: 12),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _MartNativeAdPage extends StatefulWidget {
-  const _MartNativeAdPage();
-
-  @override
-  State<_MartNativeAdPage> createState() => _MartNativeAdPageState();
-}
-
-class _MartNativeAdPageState extends State<_MartNativeAdPage> {
-  NativeAd? _ad;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    final ad = AdsService.createNativeSnapsAd(
-      onLoaded: () {
-        if (!mounted) return;
-        setState(() {
-          _loaded = true;
-        });
-      },
-      onFailed: (_) {
-        if (!mounted) return;
-        setState(() {
-          _loaded = false;
-        });
-      },
-    );
-    _ad = ad;
-    ad.load();
-  }
-
-  @override
-  void dispose() {
-    _ad?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (_loaded && _ad != null)
-            SizedBox(
-              width: double.infinity,
-              height: 340,
-              child: AdWidget(ad: _ad!),
-            )
-          else
-            const SizedBox.shrink(),
-          const SizedBox(height: 16),
-          const Text(
-            'Sponsored',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-        ],
       ),
     );
   }

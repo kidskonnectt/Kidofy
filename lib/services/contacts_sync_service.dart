@@ -119,17 +119,17 @@ class ContactsSyncService {
 
       for (final contact in contacts) {
         // Skip contacts without names
-        final displayName = contact.displayName?.trim();
-        if (displayName == null || displayName.isEmpty) {
+        final displayName = contact.displayName.trim();
+        if (displayName.isEmpty) {
           debugPrint('⏭️  Skipping contact without name');
           continue;
         }
 
         final phones = contact.phones.isNotEmpty
-            ? contact.phones[0].number?.trim()
+            ? contact.phones[0].number.trim()
             : null;
         final emails = contact.emails.isNotEmpty
-            ? contact.emails[0].address?.trim().toLowerCase()
+            ? contact.emails[0].address.trim().toLowerCase()
             : null;
 
         // Skip if already synced

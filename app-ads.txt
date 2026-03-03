@@ -1,0 +1,5 @@
+# This file contains the list of authorized sellers of ads for Kidofy app
+# Documentation: https://support.google.com/AdMob/answer/11574033
+
+# Google AdMob
+google.com, pub-9631152544509905, DIRECT, f08c47fec0942fa0

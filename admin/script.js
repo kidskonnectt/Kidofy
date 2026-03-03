@@ -649,8 +649,10 @@ function renderUsers(users) {
         tr.className = 'border-b';
         const lastLogin = user.last_login ? new Date(user.last_login).toLocaleDateString() : '-';
         const watchTime = user.total_watch_time_seconds ? Math.floor(user.total_watch_time_seconds / 60) + ' min' : '-';
+        const phone = user.phone_number ? user.phone_number : '-';
         tr.innerHTML = `
             <td class="p-3">${user.email}</td>
+            <td class="p-3 text-gray-500 text-sm">${phone}</td>
             <td class="p-3">
                 <span class="px-2 py-1 rounded text-xs ${user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}">
                     ${user.is_admin ? 'Admin' : 'User'}

@@ -105,6 +105,8 @@ class Profile {
 
 class MockData {
   static String? parentPasscode;
+  static String? parentSecurityQuestion = 'What is your child first name?';
+  static String? parentSecurityAnswer;
 
   // Explore is always ID 0 (local virtual category meaning "All").
   static List<Category> categories = [

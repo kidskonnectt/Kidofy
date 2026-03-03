@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kidsapp/screens/settings/app_policies_screen.dart';
 import 'package:kidsapp/screens/settings/report_problem_screen.dart';
+import 'package:kidsapp/screens/settings/faqs_screen.dart';
 
 class HelpFeedbackScreen extends StatelessWidget {
   const HelpFeedbackScreen({super.key});
@@ -20,7 +21,12 @@ class HelpFeedbackScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.question_answer),
             title: const Text("FAQs"),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FAQsScreen()),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.bug_report),
@@ -35,7 +41,14 @@ class HelpFeedbackScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.email),
             title: const Text("Contact Support"),
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Email: contact@kidofy.in'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            },
           ),
           const Divider(),
           const SizedBox(height: 8),
@@ -92,7 +105,7 @@ class HelpFeedbackScreen extends StatelessWidget {
           const Divider(),
           const Padding(
             padding: EdgeInsets.all(8.0),
-            child: Text("Version 1.0.0"),
+            child: Text("Version 1.0.7"),
           ),
         ],
       ),

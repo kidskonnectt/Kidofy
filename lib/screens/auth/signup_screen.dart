@@ -15,11 +15,13 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
   bool _isLoading = false;
+  bool _acceptTerms = false;
   String? _errorMessage;
 
   void _signup() async {
@@ -29,8 +31,39 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
+
+    if (!_acceptTerms) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Please accept Terms of Service and Privacy Policy";
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (phone.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Please enter your phone number";
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (phone.length < 10) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Phone number must be at least 10 digits";
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
     if (password != confirmPassword) {
       if (mounted) {
@@ -60,6 +93,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Check if session is established (Auto confirm disabled?) or if user needs to confirm email
       if (response.session != null) {
+        // Save phone number to users table
+        await SupabaseService.client
+            .from('users')
+            .update({'phone_number': phone})
+            .eq('id', response.user!.id);
+
         await SupabaseService.initializeData();
         if (!mounted) return;
         navigator.pushReplacement(
@@ -141,6 +180,20 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                decoration: InputDecoration(
+                  labelText: "Phone Number",
+                  hintText: "10 digit number",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.phone),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
@@ -161,6 +214,25 @@ class _SignupScreenState extends State<SignupScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              CheckboxListTile(
+                value: _acceptTerms,
+                onChanged: (value) {
+                  setState(() {
+                    _acceptTerms = value ?? false;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  "I accept Terms of Service and Privacy Policy",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
                 ),
               ),
 

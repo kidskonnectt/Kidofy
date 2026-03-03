@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:kidsapp/theme/app_theme.dart';
@@ -13,6 +14,7 @@ import 'package:kidsapp/screens/parent/add_kid_screen.dart';
 import 'package:kidsapp/screens/root_screen.dart';
 import 'package:kidsapp/screens/home/channel_screen.dart';
 import 'package:kidsapp/screens/snaps/shorts_feed_screen.dart';
+import 'package:kidsapp/screens/settings/app_policies_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   late final StreamSubscription<AuthState> _authSub;
   bool _handledSignedIn = false;
+  bool _showPassword = false;
 
   @override
   void initState() {
@@ -334,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: !_showPassword,
                       textInputAction: TextInputAction.done,
                       autofillHints: const [AutofillHints.password],
                       onEditingComplete: _isLoading ? null : _login,
@@ -344,6 +347,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showPassword = !_showPassword;
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ],
@@ -421,10 +437,59 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  "By continuing, you agree to our Terms of Service and Privacy Policy for Kids.",
+                child: RichText(
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.fredoka(fontSize: 12, color: Colors.grey),
+                  text: TextSpan(
+                    style: GoogleFonts.fredoka(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                    children: [
+                      const TextSpan(text: "By continuing, you agree to our "),
+                      TextSpan(
+                        text: "Terms of Service",
+                        style: GoogleFonts.fredoka(
+                          fontSize: 12,
+                          color: AppColors.primaryRed,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AppPoliciesScreen(
+                                  title: 'Terms of Service',
+                                  content: PolicyContent.termsOfService,
+                                ),
+                              ),
+                            );
+                          },
+                      ),
+                      const TextSpan(text: " and "),
+                      TextSpan(
+                        text: "Privacy Policy",
+                        style: GoogleFonts.fredoka(
+                          fontSize: 12,
+                          color: AppColors.primaryRed,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AppPoliciesScreen(
+                                  title: 'Privacy Policy',
+                                  content: PolicyContent.privacyPolicy,
+                                ),
+                              ),
+                            );
+                          },
+                      ),
+                      const TextSpan(text: " for Kids."),
+                    ],
+                  ),
                 ),
               ),
             ],
