@@ -8,6 +8,8 @@ import 'package:kidsapp/widgets/video_card.dart';
 
 import 'package:kidsapp/screens/player/video_player_screen.dart';
 import 'package:kidsapp/screens/snaps/shorts_feed_screen.dart';
+import 'package:kidsapp/services/download_bus.dart';
+import 'package:kidsapp/services/download_service.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -25,12 +27,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     MockData.currentProfile.addListener(_reload);
+    DownloadBus().addListener(_reload);
     _reload();
   }
 
   @override
   void dispose() {
     MockData.currentProfile.removeListener(_reload);
+    DownloadBus().removeListener(_reload);
     super.dispose();
   }
 
@@ -47,19 +51,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<List<Video>> _loadDownloads(String profileId) async {
     final ids = await ProfileLocalStore.getOfflineVideoIds(profileId);
     final byId = {for (final v in MockData.videos) v.id: v};
-    return ids.map((id) => byId[id]).whereType<Video>().toList();
+    
+    final List<Video> result = [];
+    for (final id in ids) {
+      final v = byId[id] ?? await ProfileLocalStore.getVideoMetadata(id);
+      if (v != null) result.add(v);
+    }
+    return result;
   }
 
   Future<List<Video>> _loadHistory(String profileId) async {
     final ids = await ProfileLocalStore.getWatchHistory(profileId);
     final byId = {for (final v in MockData.videos) v.id: v};
-    return ids.map((id) => byId[id]).whereType<Video>().toList();
+    
+    final List<Video> result = [];
+    for (final id in ids) {
+      final v = byId[id] ?? await ProfileLocalStore.getVideoMetadata(id);
+      if (v != null) result.add(v);
+    }
+    return result;
   }
 
   Future<List<Video>> _loadLiked() async {
     final ids = await InteractionService.getLikedVideoIds();
     final byId = {for (final v in MockData.videos) v.id: v};
-    return ids.map((id) => byId[id]).whereType<Video>().toList();
+    
+    final List<Video> result = [];
+    for (final id in ids) {
+      final v = byId[id] ?? await ProfileLocalStore.getVideoMetadata(id);
+      if (v != null) result.add(v);
+    }
+    return result;
   }
 
   @override
@@ -111,6 +133,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   context,
                   snapshot.data ?? const <Video>[],
                   'No downloads yet!',
+                  isDownloads: true,
                 );
               },
             ),
@@ -143,8 +166,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildVideoList(
     BuildContext context,
     List<Video> videos,
-    String emptyMessage,
-  ) {
+    String emptyMessage, {
+    bool isDownloads = false,
+  }) {
     if (videos.isEmpty) {
       return Center(
         child: Column(
@@ -168,10 +192,33 @@ class _LibraryScreenState extends State<LibraryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       itemCount: videos.length,
       itemBuilder: (context, index) {
+        final v = videos[index];
         return VideoCard(
-          video: videos[index],
+          video: v,
+          onRemove:
+              isDownloads
+                  ? () async {
+                    try {
+                      await DownloadService.removeDownloadedVideoForCurrentProfile(
+                        v.id,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Removed from downloads'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
+                      }
+                    }
+                  }
+                  : null,
           onTap: () {
-            final v = videos[index];
             if (v.isShorts) {
               Navigator.push(
                 context,

@@ -93,14 +93,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
 
       // Prefer offline file if downloaded.
-      final profile = MockData.currentProfile.value;
-      String? offlinePath;
-      if (profile != null) {
-        offlinePath = await ProfileLocalStore.getOfflineVideoPath(
-          profile.id,
-          widget.video.id,
-        );
-      }
+      String? offlinePath = await DownloadService.getDownloadedPathForCurrentProfile(
+        widget.video.id,
+      );
 
       VideoPlayerController controller;
       if (offlinePath != null && offlinePath.isNotEmpty) {

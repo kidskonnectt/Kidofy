@@ -12,4 +12,5 @@ const SUPABASE_KEY = 'YOUR_ANON_KEY';
 // For higher security, move uploads behind a server/edge function.
 const BUNNY_STORAGE_ZONE = 'YOUR_STORAGE_ZONE_NAME';
 const BUNNY_ACCESS_KEY = 'YOUR_BUNNY_STORAGE_ACCESS_KEY';
-const BUNNY_CDN_BASE = 'https://YOUR_PULL_ZONE.b-cdn.net';
+// CDN Base: Use your Cloudflare CDN domain (it pulls from Bunny storage as origin)
+const BUNNY_CDN_BASE = 'https://YOUR_CLOUDFLARE_CDN_DOMAIN';

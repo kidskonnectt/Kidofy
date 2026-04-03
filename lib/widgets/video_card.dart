@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kidsapp/models/mock_data.dart';
 import 'package:kidsapp/services/download_service.dart';
@@ -11,12 +12,14 @@ class VideoCard extends StatelessWidget {
   final Video video;
   final VoidCallback onTap;
   final VoidCallback? onBlock;
+  final VoidCallback? onRemove;
 
   const VideoCard({
     super.key,
     required this.video,
     required this.onTap,
     this.onBlock,
+    this.onRemove,
   });
 
   String _formatDuration(String raw) {
@@ -138,35 +141,49 @@ class VideoCard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : thumbUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: thumbUrl,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) =>
-                                Container(color: Colors.grey[200]),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.videocam_off,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          )
-                        : FutureBuilder(
-                            future: ThumbnailService.getVideoThumbnailBytes(
-                              videoUrl,
-                            ),
+                        : FutureBuilder<String?>(
+                            future: DownloadService.getDownloadedThumbnailPath(video.id),
                             builder: (context, snapshot) {
-                              final bytes = snapshot.data;
-                              if (bytes == null || bytes.isEmpty) {
-                                return Container(color: Colors.grey[200]);
+                              final localThumb = snapshot.data;
+                              if (localThumb != null && localThumb.isNotEmpty) {
+                                return Image.file(
+                                  File(localThumb),
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                );
                               }
-                              return Image.memory(
-                                bytes,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
+                              
+                              if (thumbUrl.isNotEmpty) {
+                                return CachedNetworkImage(
+                                  imageUrl: thumbUrl,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      Container(color: Colors.grey[200]),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.videocam_off,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              return FutureBuilder(
+                                future: ThumbnailService.getVideoThumbnailBytes(videoUrl),
+                                builder: (context, snapshot) {
+                                  final bytes = snapshot.data;
+                                  if (bytes == null || bytes.isEmpty) {
+                                    return Container(color: Colors.grey[200]);
+                                  }
+                                  return Image.memory(
+                                    bytes,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                  );
+                                },
                               );
                             },
                           ),
@@ -265,90 +282,126 @@ class VideoCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.grey),
-                    onSelected: (value) async {
-                      if (value == 'download') {
-                        try {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Downloading...'),
-                              duration: Duration(seconds: 1),
+                  FutureBuilder<String?>(
+                    future: DownloadService.getDownloadedPathForCurrentProfile(video.id),
+                    builder: (context, snapshot) {
+                      final isDownloaded = snapshot.data != null;
+                      
+                      return PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.grey),
+                        onSelected: (value) async {
+                          if (value == 'download') {
+                            try {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Downloading...'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                              await DownloadService.downloadVideoForCurrentProfile(
+                                video,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Download Complete!'),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            }
+                          } else if (value == 'remove_download') {
+                            if (onRemove != null) {
+                              onRemove!();
+                            } else {
+                              try {
+                                await DownloadService.removeDownloadedVideoForCurrentProfile(
+                                  video.id,
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Removed from downloads'),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
+                                }
+                              }
+                            }
+                          } else if (value == 'report') {
+                            // Show Report Dialog
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                final controller = TextEditingController();
+                                return AlertDialog(
+                                  title: const Text('Report Video'),
+                                  content: TextField(
+                                    controller: controller,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Reason',
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        if (controller.text.isNotEmpty) {
+                                          InteractionService.submitReport(
+                                            video.id,
+                                            controller.text,
+                                            'Reported from Card',
+                                          );
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Report submitted.'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Submit'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                        },
+                        itemBuilder: (BuildContext context) {
+                          return [
+                            if (!video.isShorts && (onRemove == null || !isDownloaded))
+                              const PopupMenuItem(
+                                value: 'download',
+                                child: Text('Download'),
+                              ),
+                            if (isDownloaded && onRemove != null)
+                              const PopupMenuItem(
+                                value: 'remove_download',
+                                child: Text('Remove Download'),
+                              ),
+                            const PopupMenuItem(
+                              value: 'report',
+                              child: Text('Report'),
                             ),
-                          );
-                          await DownloadService.downloadVideoForCurrentProfile(
-                            video,
-                          );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Download Complete!'),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
-                          }
-                        }
-                      } else if (value == 'report') {
-                        // Show Report Dialog
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            final controller = TextEditingController();
-                            return AlertDialog(
-                              title: const Text('Report Video'),
-                              content: TextField(
-                                controller: controller,
-                                decoration: const InputDecoration(
-                                  hintText: 'Reason',
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Cancel'),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    if (controller.text.isNotEmpty) {
-                                      InteractionService.submitReport(
-                                        video.id,
-                                        controller.text,
-                                        'Reported from Card',
-                                      );
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Report submitted.'),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: const Text('Submit'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      }
-                    },
-                    itemBuilder: (BuildContext context) {
-                      return [
-                        const PopupMenuItem(
-                          value: 'download',
-                          child: Text('Download'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'report',
-                          child: Text('Report'),
-                        ),
-                      ];
+                          ];
+                        },
+                      );
                     },
                   ),
                 ],

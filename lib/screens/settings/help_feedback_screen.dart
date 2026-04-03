@@ -105,7 +105,7 @@ class HelpFeedbackScreen extends StatelessWidget {
           const Divider(),
           const Padding(
             padding: EdgeInsets.all(8.0),
-            child: Text("Version 1.0.7"),
+            child: Text("Version 1.0.8"),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:kidsapp/services/download_bus.dart';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
@@ -12,7 +13,34 @@ class DownloadService {
   ) async {
     final profile = MockData.currentProfile.value;
     if (profile == null) return null;
-    return ProfileLocalStore.getOfflineVideoPath(profile.id, videoId);
+    
+    final fileName = await ProfileLocalStore.getOfflineVideoPath(profile.id, videoId);
+    if (fileName == null || fileName.isEmpty) return null;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = '${dir.path}${Platform.pathSeparator}downloads${Platform.pathSeparator}$fileName';
+    
+    if (await File(filePath).exists()) {
+      return filePath;
+    }
+    return null;
+  }
+
+  static Future<String?> getDownloadedThumbnailPath(String videoId) async {
+    final profile = MockData.currentProfile.value;
+    if (profile == null) return null;
+
+    final fileName = await ProfileLocalStore.getOfflineVideoPath(profile.id, videoId);
+    if (fileName == null || fileName.isEmpty) return null;
+
+    final thumbFileName = fileName.replaceFirst('.mp4', '_thumb.jpg');
+    final dir = await getApplicationDocumentsDirectory();
+    final thumbPath = '${dir.path}${Platform.pathSeparator}downloads${Platform.pathSeparator}$thumbFileName';
+
+    if (await File(thumbPath).exists()) {
+      return thumbPath;
+    }
+    return null;
   }
 
   static Future<String> downloadVideoForCurrentProfile(Video video) async {
@@ -45,10 +73,29 @@ class DownloadService {
     }
 
     await file.writeAsBytes(resp.bodyBytes, flush: true);
+    
+    // Download and cache thumbnail for offline use
+    if (video.thumbnailUrl.isNotEmpty) {
+      try {
+        final thumbResp = await http.get(Uri.parse(video.thumbnailUrl));
+        if (thumbResp.statusCode == 200) {
+          final thumbPath = '${downloadsDir.path}${Platform.pathSeparator}${safeId}_thumb.jpg';
+          await File(thumbPath).writeAsBytes(thumbResp.bodyBytes);
+          // Store relative thumb path or just a flag
+        }
+      } catch (e) {
+        debugPrint('Failed to download thumbnail: $e');
+      }
+    }
+    
+    // Save metadata locally so it persists even if Supabase fetch fails (offline)
+    await ProfileLocalStore.saveVideoMetadata(video);
 
     await ProfileLocalStore.addOfflineVideo(profile.id, video.id);
-    await ProfileLocalStore.setOfflineVideoPath(profile.id, video.id, filePath);
+    final fileName = '$safeId.mp4';
+    await ProfileLocalStore.setOfflineVideoPath(profile.id, video.id, fileName);
 
+    DownloadBus().notifyChanged();
     return filePath;
   }
 
@@ -64,16 +111,26 @@ class DownloadService {
     );
     if (path != null && path.isNotEmpty) {
       try {
-        final file = File(path);
-        if (await file.exists()) {
-          await file.delete();
+        final videoFile = File(path);
+        if (await videoFile.exists()) {
+          await videoFile.delete();
+        }
+        
+        // Also remove thumbnail
+        final thumbPath = path.replaceFirst('.mp4', '_thumb.jpg');
+        final thumbFile = File(thumbPath);
+        if (await thumbFile.exists()) {
+          await thumbFile.delete();
         }
       } catch (e) {
-        debugPrint('Failed to delete downloaded file: $e');
+        debugPrint('Failed to delete downloaded files: $e');
       }
     }
 
     await ProfileLocalStore.removeOfflineVideo(profile.id, videoId);
     await ProfileLocalStore.removeOfflineVideoPath(profile.id, videoId);
+    await ProfileLocalStore.removeVideoMetadata(videoId);
+    
+    DownloadBus().notifyChanged();
   }
 }

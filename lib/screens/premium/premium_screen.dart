@@ -681,41 +681,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               _buildPricingPlans(),
               const SizedBox(height: 30),
 
-              // Subscribe Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryRed,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: (selectedPlan != null && !_isProcessing)
-                      ? _initiatePayment
-                      : null,
-                  child: _isProcessing
-                      ? SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          'Subscribe Now',
-                          style: GoogleFonts.bubblegumSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
+              const SizedBox(height: 20),
               const SizedBox(height: 40),
 
               // FAQs Section
@@ -847,7 +813,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 : index == 2
                                 ? AppColors.primaryRed
                                 : Colors.green)
-                            .withOpacity(0.1)
                       : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
@@ -918,139 +883,210 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
 
                     // Content
-                    Row(
+                    Column(
                       children: [
-                        // Icon
-                        Text(plan.icon, style: const TextStyle(fontSize: 32)),
-                        const SizedBox(width: 16),
+                        Row(
+                          children: [
+                            // Icon
+                            Text(
+                              plan.icon,
+                              style: const TextStyle(fontSize: 32),
+                            ),
+                            const SizedBox(width: 16),
 
-                        // Plan Details
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                plan.name,
-                                style: GoogleFonts.bubblegumSans(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textDark,
-                                ),
+                            // Plan Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.name,
+                                    style: GoogleFonts.bubblegumSans(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Benefits
+                                  ...plan.benefits.map((benefit) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        '✓ $benefit',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: isSelected
+                                              ? Colors.white.withOpacity(0.9)
+                                              : (index == 0
+                                                  ? Colors.blue
+                                                  : index == 1
+                                                      ? Colors.purple
+                                                      : index == 2
+                                                          ? AppColors
+                                                              .primaryRed
+                                                          : Colors.green),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  if (plan.saving != null) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Colors.white.withOpacity(0.2)
+                                            : Colors.green.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.white.withOpacity(0.4)
+                                              : Colors.green.withOpacity(0.4),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      child: Text(
+                                        plan.saving!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.green.shade700,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              // Benefits
-                              ...plan.benefits.map((benefit) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text(
-                                    '✓ $benefit',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      color: index == 0
-                                          ? Colors.blue
-                                          : index == 1
-                                          ? Colors.purple
-                                          : index == 2
-                                          ? AppColors.primaryRed
-                                          : Colors.green,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                            ),
+
+                            // Price
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '₹${plan.price}',
+                                  style: GoogleFonts.bubblegumSans(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (index == 0
+                                            ? Colors.blue
+                                            : index == 1
+                                                ? Colors.purple
+                                                : index == 2
+                                                    ? AppColors
+                                                        .primaryRed
+                                                    : Colors.green),
                                   ),
-                                );
-                              }).toList(),
-                              if (plan.saving != null) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: Colors.green.withOpacity(0.4),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  child: Text(
-                                    plan.saving!,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      color: Colors.green.shade700,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                ),
+                                Text(
+                                  plan.durationText,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: isSelected
+                                        ? Colors.white.withOpacity(0.8)
+                                        : Colors.grey,
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ),
-
-                        // Price
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹${plan.price}',
-                              style: GoogleFonts.bubblegumSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: index == 0
-                                    ? Colors.blue
-                                    : index == 1
-                                    ? Colors.purple
-                                    : index == 2
-                                    ? AppColors.primaryRed
-                                    : Colors.green,
-                              ),
                             ),
-                            Text(
-                              plan.durationText,
-                              style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                color: Colors.grey,
+
+                            // Checkbox
+                            const SizedBox(width: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey.withOpacity(0.3),
+                                  width: 2,
+                                ),
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.transparent,
                               ),
+                              padding: const EdgeInsets.all(4),
+                              child: isSelected
+                                  ? Icon(
+                                      Icons.check,
+                                      color: (index == 0
+                                          ? Colors.blue
+                                          : index == 1
+                                              ? Colors.purple
+                                              : index == 2
+                                                  ? AppColors.primaryRed
+                                                  : Colors.green),
+                                      size: 16,
+                                    )
+                                  : const SizedBox(width: 16, height: 16),
                             ),
                           ],
                         ),
-
-                        // Checkbox
-                        const SizedBox(width: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected
-                                  ? (index == 0
-                                        ? Colors.blue
-                                        : index == 1
+                        if (isSelected) ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: (index == 0
+                                    ? Colors.blue
+                                    : index == 1
                                         ? Colors.purple
                                         : index == 2
-                                        ? AppColors.primaryRed
-                                        : Colors.green)
-                                  : Colors.grey.withOpacity(0.3),
-                              width: 2,
+                                            ? AppColors.primaryRed
+                                            : Colors.green),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              onPressed:
+                                  _isProcessing ? null : _initiatePayment,
+                              child: _isProcessing
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          (index == 0
+                                              ? Colors.blue
+                                              : index == 1
+                                                  ? Colors.purple
+                                                  : index == 2
+                                                      ? AppColors.primaryRed
+                                                      : Colors.green),
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      'Subscribe Now',
+                                      style: GoogleFonts.bubblegumSans(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
-                            color: isSelected
-                                ? (index == 0
-                                      ? Colors.blue
-                                      : index == 1
-                                      ? Colors.purple
-                                      : index == 2
-                                      ? AppColors.primaryRed
-                                      : Colors.green)
-                                : Colors.transparent,
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          child: isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 16,
-                                )
-                              : const SizedBox(width: 16, height: 16),
-                        ),
+                          ).animate().scale(
+                                duration: 300.ms,
+                                curve: Curves.easeOutBack,
+                              ),
+                        ],
                       ],
                     ),
                   ],

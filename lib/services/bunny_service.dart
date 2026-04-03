@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 class BunnyService {
   static const String storageName = 'kidskonnect';
   static const String storageHost = 'storage.bunnycdn.com';
-  static const String cdnHost = 'kidskonnect.b-cdn.net';
+  // Cloudflare CDN (pulls from Bunny storage as origin)
+  static const String cdnHost = 'cdn.kidofy.in';
   static const String apiKey =
       '53c81d83-2bbe-4004-b053a4f408dd-f62a-4e2c'; // Be careful with exposing this on client side!
 

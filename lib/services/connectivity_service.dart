@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:kidsapp/services/supabase_service.dart';
 
 class ConnectivityService extends ChangeNotifier {
   static final ConnectivityService _instance = ConnectivityService._internal();
@@ -33,6 +34,12 @@ class ConnectivityService extends ChangeNotifier {
       _isOnline = result != ConnectivityResult.none;
       if (wasOnline != _isOnline) {
         notifyListeners();
+        
+        // Auto-refresh data when coming back online
+        if (_isOnline) {
+           debugPrint('🌐 App is back online, refreshing data...');
+           SupabaseService.initializeData();
+        }
       }
     });
   }

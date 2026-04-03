@@ -10,6 +10,8 @@ import 'package:kidsapp/services/profile_local_store.dart';
 import 'package:kidsapp/screens/parent/parent_settings_detail_screen.dart';
 import 'package:kidsapp/screens/premium/premium_screen.dart';
 import 'package:kidsapp/utils/content_level.dart';
+import 'package:provider/provider.dart';
+import 'package:kidsapp/providers/premium_notifier.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,11 +22,26 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   Profile? _selectedProfileForConfig;
+  int _currentTimeLimit = 0;
 
   @override
   void initState() {
     super.initState();
     _selectedProfileForConfig = MockData.currentProfile.value;
+    _fetchLimit();
+  }
+
+  void _fetchLimit() async {
+    if (_selectedProfileForConfig != null) {
+      final limit = await ProfileLocalStore.getTimerLimitMinutes(
+        _selectedProfileForConfig!.id,
+      );
+      if (mounted) {
+        setState(() {
+          _currentTimeLimit = limit;
+        });
+      }
+    }
   }
 
   @override
@@ -71,6 +88,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisSpacing: 16,
                   children: [
                     _SettingCard(
+                      icon: Icons.timer,
+                      title: "Time Limit",
+                      color: AppColors.primaryRed,
+                      subtitle:
+                          _currentTimeLimit == 0
+                              ? "Unlimited Time"
+                              : "$_currentTimeLimit mins set",
+                      onTap: () => _handleTimeLimitTap(context),
+                      isLocked: !context.watch<PremiumNotifier>().hasActivePremium,
+                    ),
+                    _SettingCard(
                       icon: Icons.block,
                       title: "Content",
                       color: AppColors.accentBlue,
@@ -106,7 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingCard(
                       icon: Icons.workspace_premium,
                       title: "Premium",
-                      color: Colors.amber,
+                      color: AppColors.primaryRed,
                       subtitle: "Unlock features",
                       onTap: () {
                         Navigator.push(
@@ -247,6 +275,295 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text("Save"),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _handleTimeLimitTap(BuildContext context) {
+    final premiumNotifier = context.read<PremiumNotifier>();
+    if (premiumNotifier.hasActivePremium) {
+      _showTimeLimitPicker();
+    } else {
+      _showPremiumPopup();
+    }
+  }
+
+  void _showPremiumPopup() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryRed.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium,
+                    color: AppColors.primaryRed,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Premium Feature",
+                  style: GoogleFonts.fredoka(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Time Limit is a premium feature. Upgrade your plan to unlock full parental controls and more!",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PremiumScreen(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      "Explore Plans",
+                      style: GoogleFonts.fredoka(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Maybe Later",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showTimeLimitPicker() async {
+    final profile = _selectedProfileForConfig;
+    if (profile == null) return;
+
+    int currentLimit = await ProfileLocalStore.getTimerLimitMinutes(profile.id);
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+              ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryRed.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.timer,
+                          color: AppColors.primaryRed,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "Set Time Limit",
+                        style: GoogleFonts.fredoka(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    currentLimit == 0
+                        ? "Unlimited Time"
+                        : "$currentLimit Minutes",
+                    style: GoogleFonts.fredoka(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryRed,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Daily usage limit for ${profile.name}",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: AppColors.primaryRed,
+                      inactiveTrackColor:
+                          AppColors.primaryRed.withValues(alpha: 0.2),
+                      trackHeight: 8.0,
+                      thumbColor: AppColors.primaryRed,
+                      overlayColor: AppColors.primaryRed.withValues(alpha: 0.1),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 15.0,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 30.0,
+                      ),
+                    ),
+                    child: Slider(
+                      value: currentLimit.toDouble(),
+                      min: 0,
+                      max: 180, // 3 hours
+                      divisions: 12, // 15 min steps
+                      onChanged: (value) {
+                        setSheetState(() {
+                          currentLimit = value.toInt();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Minimum",
+                          style: TextStyle(color: Colors.grey[400]),
+                        ),
+                        Text(
+                          "Maximum (3h)",
+                          style: TextStyle(color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryRed,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        await ProfileLocalStore.setTimerLimitMinutes(
+                          profile.id,
+                          currentLimit,
+                        );
+                        if (!context.mounted) return;
+                        _fetchLimit();
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              currentLimit == 0
+                                  ? "Time limit removed"
+                                  : "Time limit set to $currentLimit minutes",
+                            ),
+                            backgroundColor: AppColors.primaryRed,
+                          ),
+                        );
+                      },
+                      child: Text(
+                        "Save Limit",
+                        style: GoogleFonts.fredoka(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -661,6 +978,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() {
                           _selectedProfileForConfig = p;
                         });
+                        _fetchLimit();
                       },
                       child: Column(
                         children: [
@@ -751,6 +1069,7 @@ class _SettingCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final bool isLocked;
 
   const _SettingCard({
     required this.icon,
@@ -758,50 +1077,73 @@ class _SettingCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.isLocked = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 32),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: GoogleFonts.fredoka(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (isLocked)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryRed,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 14,
+                ),
               ),
-              child: Icon(icon, color: color, size: 32),
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.fredoka(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

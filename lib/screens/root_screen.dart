@@ -5,13 +5,18 @@ import 'package:kidsapp/screens/library/library_screen.dart';
 import 'package:kidsapp/screens/mart/mart_screen.dart';
 import 'package:kidsapp/models/mock_data.dart';
 import 'package:kidsapp/theme/app_theme.dart';
-import 'package:kidsapp/widgets/offline_full_screen.dart';
 import 'package:kidsapp/services/connectivity_service.dart';
 import 'package:kidsapp/services/video_playback_bus.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:kidsapp/screens/tv/tv_root_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:kidsapp/providers/premium_notifier.dart';
+import 'dart:async';
+import 'package:kidsapp/services/usage_tracker.dart';
+import 'package:kidsapp/services/profile_local_store.dart';
+import 'package:kidsapp/screens/parent/time_is_up_screen.dart';
 
 class RootScreen extends StatefulWidget {
   final int initialIndex;
@@ -24,6 +29,7 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   late int _currentIndex;
+  Timer? _usageTimer;
 
   @override
   void initState() {
@@ -38,6 +44,31 @@ class _RootScreenState extends State<RootScreen> {
 
       // Initialize premium status for current user
       _initializePremium();
+      _startUsageTracking();
+    });
+  }
+
+  void _startUsageTracking() {
+    _usageTimer?.cancel();
+    _usageTimer = Timer.periodic(const Duration(minutes: 1), (timer) async {
+      final profile = MockData.currentProfile.value;
+      if (profile == null) return;
+
+      // Track usage
+      await UsageTracker.addMinute(profile.id);
+
+      // Check limit
+      final used = await UsageTracker.getTodayMinutes(profile.id);
+      final limit = await ProfileLocalStore.getTimerLimitMinutes(profile.id);
+
+      if (limit > 0 && used >= limit && mounted) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const TimeIsUpScreen()),
+        );
+      }
     });
   }
 
@@ -51,6 +82,12 @@ class _RootScreenState extends State<RootScreen> {
     } catch (e) {
       debugPrint('Error initializing premium: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _usageTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -94,13 +131,54 @@ class _RootScreenState extends State<RootScreen> {
         }
       },
       child: Scaffold(
-        body: Consumer<ConnectivityService>(
-          builder: (context, connectivity, child) {
-            if (!connectivity.isOnline) {
-              return const OfflineFullScreen();
-            }
-            return Column(children: [Expanded(child: currentPage())]);
-          },
+        body: Column(
+          children: [
+            // Modern Offline Banner
+            Consumer<ConnectivityService>(
+              builder: (context, connectivity, _) {
+                if (connectivity.isOffline) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.textDark.withOpacity(0.9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Offline Mode",
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .animate()
+                  .fadeIn()
+                  .slideY(begin: -1, end: 0, duration: 300.ms, curve: Curves.easeOut);
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            Expanded(child: currentPage()),
+          ],
         ),
         bottomNavigationBar: ValueListenableBuilder<Profile?>(
           valueListenable: MockData.currentProfile,

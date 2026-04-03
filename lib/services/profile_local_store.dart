@@ -1,6 +1,6 @@
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kidsapp/models/mock_data.dart';
 
 class ProfileLocalStore {
   static String _timerKey(String profileId) => 'timer_limit_minutes_$profileId';
@@ -8,6 +8,8 @@ class ProfileLocalStore {
   static String _offlineKey(String profileId) => 'offline_videos_$profileId';
   static String _offlinePathKey(String profileId, String videoId) =>
       'offline_video_path_${profileId}_$videoId';
+  static String _offlineMetadataKey(String videoId) =>
+      'offline_video_metadata_$videoId';
 
   static Future<int> getTimerLimitMinutes(String profileId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -112,5 +114,63 @@ class ProfileLocalStore {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_offlinePathKey(profileId, videoId));
+  }
+
+  // Video Metadata Caching for Offline Use
+  static Future<void> saveVideoMetadata(Video video) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = {
+      'id': video.id,
+      'title': video.title,
+      'thumbnailUrl': video.thumbnailUrl,
+      'videoUrl': video.videoUrl,
+      'duration': video.duration,
+      'channelName': video.channelName,
+      'channelAvatarUrl': video.channelAvatarUrl,
+      'categoryId': video.categoryId,
+      'isShorts': video.isShorts,
+      'contentLevel': video.contentLevel,
+    };
+    await prefs.setString(_offlineMetadataKey(video.id), jsonEncode(json));
+  }
+
+  static Future<Video?> getVideoMetadata(String videoId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_offlineMetadataKey(videoId));
+    if (raw == null) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return Video(
+        id: json['id'],
+        title: json['title'],
+        thumbnailUrl: json['thumbnailUrl'],
+        videoUrl: json['videoUrl'],
+        duration: json['duration'],
+        channelName: json['channelName'],
+        channelAvatarUrl: json['channelAvatarUrl'],
+        categoryId: json['categoryId'],
+        isShorts: json['isShorts'] ?? false,
+        contentLevel: json['contentLevel'],
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<void> removeVideoMetadata(String videoId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offlineMetadataKey(videoId));
+  }
+
+  static Future<List<Video>> getAllCachedVideos() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith('offline_video_metadata_'));
+    final List<Video> videos = [];
+    for (final key in keys) {
+      final videoId = key.replaceFirst('offline_video_metadata_', '');
+      final v = await getVideoMetadata(videoId);
+      if (v != null) videos.add(v);
+    }
+    return videos;
   }
 }

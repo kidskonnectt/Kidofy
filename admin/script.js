@@ -164,7 +164,7 @@ async function deleteBunnyFile(path) {
 
     const cleanPath = String(path).replace(/^\/+/, '');
     const url = `https://storage.bunnycdn.com/${encodeURIComponent(BUNNY_STORAGE_ZONE)}/${cleanPath}`;
-    
+
     try {
         const resp = await fetch(url, {
             method: 'DELETE',
@@ -247,8 +247,8 @@ async function handleLogin() {
         errorText.textContent = err?.message ?? String(err);
         errorText.classList.remove('hidden');
         if (currentUser) {
-             await supabaseClient.auth.signOut();
-             currentUser = null;
+            await supabaseClient.auth.signOut();
+            currentUser = null;
         }
     }
 }
@@ -263,35 +263,35 @@ window.onload = async () => {
     if (!validateSupabaseConfig()) return;
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-         // Verify admin again - this query does NOT use RLS
-         const { data: userData } = await supabaseClient
+        // Verify admin again - this query does NOT use RLS
+        const { data: userData } = await supabaseClient
             .from('users')
             .select('is_admin')
             .eq('id', session.user.id)
             .single();
-        
-         if (userData && userData.is_admin) {
-             currentUser = session.user;
-             toggleView(true);
-             loadDashboardData('users');
-         } else {
-             // Not admin but has session? Sign out.
-             await supabaseClient.auth.signOut();
-             toggleView(false);
-         }
+
+        if (userData && userData.is_admin) {
+            currentUser = session.user;
+            toggleView(true);
+            loadDashboardData('users');
+        } else {
+            // Not admin but has session? Sign out.
+            await supabaseClient.auth.signOut();
+            toggleView(false);
+        }
     }
 };
 
 function toggleView(isLoggedIn) {
-     if (isLoggedIn) {
-         document.getElementById('login-container').classList.add('hidden');
-         document.getElementById('dashboard-container').classList.remove('hidden');
-         document.getElementById('user-display').textContent = currentUser.email;
-     } else {
-         document.getElementById('login-container').classList.remove('hidden');
-         document.getElementById('dashboard-container').classList.add('hidden');
-         currentUser = null;
-     }
+    if (isLoggedIn) {
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('dashboard-container').classList.remove('hidden');
+        document.getElementById('user-display').textContent = currentUser.email;
+    } else {
+        document.getElementById('login-container').classList.remove('hidden');
+        document.getElementById('dashboard-container').classList.add('hidden');
+        currentUser = null;
+    }
 }
 
 // Navigation
@@ -299,13 +299,13 @@ function showSection(sectionId) {
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     // Simple way to find the link tapped - in real app, bind ID or use event target closer
     // For now assuming order: 0: Users, 1: Videos, 2: Channels, 3: Categories, 4: Contacts, 5: Mart, 6: Referrals, 7: Reports
-    
+
     ['users', 'videos', 'channels', 'categories', 'contacts', 'mart', 'referrals', 'reports'].forEach(id => {
         document.getElementById(`${id}-section`).classList.add('hidden');
     });
     document.getElementById(`${sectionId}-section`).classList.remove('hidden');
     document.getElementById('section-title').textContent = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
-    
+
     loadDashboardData(sectionId);
 
     // On mobile, collapse the sidebar after navigation.
@@ -324,12 +324,12 @@ function closeSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if (!sidebar || !overlay) return;
-    
+
     // On mobile, always close.
     // On desktop, we don't auto-close via this function (usually called by overlay click), 
     // unless we strictly want to reset specific states?
     // Current logic: If overlay clicked, it means we are in mobile/overlay mode.
-    
+
     sidebar.classList.add('-translate-x-full');
     overlay.classList.add('hidden');
 }
@@ -341,14 +341,14 @@ function toggleSidebarInternal() {
 function toggleSidebarDesktop() {
     const sidebar = document.getElementById('sidebar');
     const content = document.getElementById('main-content');
-    
+
     // Toggle the class valid for desktop
     if (sidebar.classList.contains('md:translate-x-0')) {
         // HIDE
-        sidebar.classList.remove('md:translate-x-0'); 
+        sidebar.classList.remove('md:translate-x-0');
         // Ensure it has the hide class
         sidebar.classList.add('-translate-x-full');
-        
+
         // Adjust content margin
         content.classList.remove('md:ml-64');
         content.classList.add('md:ml-0');
@@ -356,7 +356,7 @@ function toggleSidebarDesktop() {
         // SHOW
         sidebar.classList.add('md:translate-x-0');
         sidebar.classList.remove('-translate-x-full');
-        
+
         content.classList.add('md:ml-64');
         content.classList.remove('md:ml-0');
     }
@@ -373,23 +373,23 @@ async function loadDashboardData(type) {
             populateContactsUserFilter();
         }
     } else if (type === 'videos') {
-         const { data, error } = await supabaseClient.from('videos').select('*');
-         if (data) {
-             allVideos = data;
-             renderVideos(data);
-             populateVideoFilters(); // New function
-         }
+        const { data, error } = await supabaseClient.from('videos').select('*');
+        if (data) {
+            allVideos = data;
+            renderVideos(data);
+            populateVideoFilters(); // New function
+        }
     } else if (type === 'channels') {
-         const { data, error } = await supabaseClient.from('channels').select('*');
-         if (data) renderChannels(data);
+        const { data, error } = await supabaseClient.from('channels').select('*');
+        if (data) renderChannels(data);
     } else if (type === 'categories') {
-         const { data, error } = await supabaseClient.from('categories').select('*');
-         if (data) {
-             allCategories = data; // Store internally
-             renderCategories(data);
-         }
+        const { data, error } = await supabaseClient.from('categories').select('*').order('display_order', { ascending: true });
+        if (data) {
+            allCategories = data; // Store internally
+            renderCategories(data);
+        }
     } else if (type === 'contacts') {
-         const { data, error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('contacts')
             .select(`
                 id,
@@ -402,29 +402,29 @@ async function loadDashboardData(type) {
                 auth.users(email)
             `)
             .order('synced_at', { ascending: false });
-         if (data) {
-             allContacts = data;
-             renderContacts(data);
-             calculateContactsStats(data);
-         }
+        if (data) {
+            allContacts = data;
+            renderContacts(data);
+            calculateContactsStats(data);
+        }
     } else if (type === 'mart') {
-         const { data, error } = await supabaseClient.from('mart_videos').select('*').order('display_order', { ascending: true });
-         if (data) renderMart(data);
+        const { data, error } = await supabaseClient.from('mart_videos').select('*').order('display_order', { ascending: true });
+        if (data) renderMart(data);
     } else if (type === 'referrals') {
-         const { data, error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('referrals')
             .select('*')
             .order('created_at', { ascending: false });
-         if (data) renderReferrals(data);
+        if (data) renderReferrals(data);
     } else if (type === 'reports') {
-         const { data, error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('reports')
             .select('*')
             .order('created_at', { ascending: false });
-         if (data) {
-             allReports = data;
-             renderReports(data);
-         }
+        if (data) {
+            allReports = data;
+            renderReports(data);
+        }
     }
 }
 
@@ -435,9 +435,9 @@ function populateVideoFilters() {
     // We need categories loaded. If not loaded, fetch them (or wait).
     // Assuming categories are fetched or we can simulate distinct from videos?
     // Ideally we fetched categories separately. Let's try to just fetch them if empty.
-    
+
     if (allCategories.length === 0) {
-        supabaseClient.from('categories').select('*').then(({data}) => {
+        supabaseClient.from('categories').select('*').then(({ data }) => {
             if (data) {
                 allCategories = data;
                 _fillCategoryOptions(sel);
@@ -463,17 +463,86 @@ function _fillCategoryOptions(selectElement) {
 function filterVideos() {
     const query = document.getElementById('video-search').value.toLowerCase();
     const catId = document.getElementById('video-filter-category').value;
-    
+    const type = document.getElementById('video-filter-type').value;
+
     const filtered = allVideos.filter(v => {
         const matchesQuery = (
             (v.title && v.title.toLowerCase().includes(query)) ||
             (v.channel_name && v.channel_name.toLowerCase().includes(query)) ||
             (v.id && String(v.id).includes(query))
         );
-        const matchesCategory = catId ? (v.category_id === catId) : true;
-        return matchesQuery && matchesCategory;
+        const matchesCategory = catId ? (String(v.category_id) === String(catId)) : true;
+        
+        let matchesType = true;
+        if (type === 'shorts') {
+            matchesType = (v.is_shorts === true);
+        } else if (type === 'regular') {
+            matchesType = (v.is_shorts === false || v.is_shorts === null);
+        }
+        
+        return matchesQuery && matchesCategory && matchesType;
     });
     renderVideos(filtered);
+}
+
+// User Tab Switching
+function switchUserTab(tab) {
+    const allBtn = document.getElementById('user-tab-all');
+    const providersBtn = document.getElementById('user-tab-providers');
+    const allContainer = document.getElementById('users-table-container');
+    const providersContainer = document.getElementById('providers-table-container');
+
+    if (tab === 'all') {
+        allBtn.classList.add('bg-white', 'shadow-sm', 'text-purple-600');
+        allBtn.classList.remove('text-gray-600');
+        providersBtn.classList.remove('bg-white', 'shadow-sm', 'text-purple-600');
+        providersBtn.classList.add('text-gray-600');
+        allContainer.classList.remove('hidden');
+        providersContainer.classList.add('hidden');
+    } else {
+        providersBtn.classList.add('bg-white', 'shadow-sm', 'text-purple-600');
+        providersBtn.classList.remove('text-gray-600');
+        allBtn.classList.remove('bg-white', 'shadow-sm', 'text-purple-600');
+        allBtn.classList.add('text-gray-600');
+        allContainer.classList.add('hidden');
+        providersContainer.classList.remove('hidden');
+        renderProviders(allUsers);
+    }
+}
+
+function renderProviders(users) {
+    const tbody = document.getElementById('providers-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b hover:bg-gray-50';
+        
+        // Format providers
+        let providerBadges = '';
+        const providers = user.providers || [];
+        if (Array.isArray(providers)) {
+            providerBadges = providers.map(p => {
+                const colors = {
+                    'google': 'bg-red-100 text-red-700',
+                    'email': 'bg-blue-100 text-blue-700',
+                    'phone': 'bg-green-100 text-green-700'
+                };
+                const cls = colors[p.toLowerCase()] || 'bg-gray-100 text-gray-700';
+                return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase mr-1 ${cls}">${p}</span>`;
+            }).join('');
+        } else {
+            providerBadges = '<span class="text-gray-400 text-xs">None</span>';
+        }
+
+        tr.innerHTML = `
+            <td class="p-3 text-sm font-medium">${user.email || 'Anonymous'}</td>
+            <td class="p-3">${providerBadges}</td>
+            <td class="p-3 text-sm text-gray-500">${new Date(user.created_at).toLocaleDateString()}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 function filterReports() {
@@ -481,14 +550,14 @@ function filterReports() {
     const status = document.getElementById('report-filter-status').value;
 
     const filtered = allReports.filter(r => {
-         const matchesQuery = (
+        const matchesQuery = (
             (r.id && String(r.id).includes(query)) ||
             (r.user_id && String(r.user_id).toLowerCase().includes(query)) ||
             (r.video_id && String(r.video_id).toLowerCase().includes(query)) ||
             (r.reason && String(r.reason).toLowerCase().includes(query))
-         );
-         const matchesStatus = status ? (r.status === status) : true;
-         return matchesQuery && matchesStatus;
+        );
+        const matchesStatus = status ? (r.status === status) : true;
+        return matchesQuery && matchesStatus;
     });
     renderReports(filtered);
 }
@@ -538,7 +607,7 @@ async function showEditReferralModal(id) {
         <div class="mb-3">
             <label class="block text-sm font-bold mb-1">Status</label>
             <select id="ref-status" class="w-full border p-2 rounded">
-                ${['pending','completed','rejected'].map(s => `<option value="${s}" ${String(data.status ?? 'pending')===s?'selected':''}>${s}</option>`).join('')}
+                ${['pending', 'completed', 'rejected'].map(s => `<option value="${s}" ${String(data.status ?? 'pending') === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
         </div>
     `;
@@ -600,7 +669,7 @@ async function showEditReportModal(id) {
         <div class="mb-3">
             <label class="block text-sm font-bold mb-1">Status</label>
             <select id="rep-status" class="w-full border p-2 rounded">
-                ${['open','pending','resolved','closed'].map(s => `<option value="${s}" ${String(data.status ?? 'open')===s?'selected':''}>${s}</option>`).join('')}
+                ${['open', 'pending', 'resolved', 'closed'].map(s => `<option value="${s}" ${String(data.status ?? 'open') === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
         </div>
         <div class="mb-3">
@@ -697,14 +766,14 @@ function renderContacts(contacts) {
 function populateContactsUserFilter() {
     const sel = document.getElementById('contacts-filter-user');
     if (!sel) return;
-    
+
     const currentVal = sel.value;
     sel.innerHTML = '<option value="">All Users</option>';
-    
+
     // Get unique users from contacts
     const uniqueUsers = [];
     const userIds = new Set();
-    
+
     allContacts.forEach(c => {
         if (!userIds.has(c.user_id)) {
             userIds.add(c.user_id);
@@ -714,14 +783,14 @@ function populateContactsUserFilter() {
             });
         }
     });
-    
+
     uniqueUsers.forEach(user => {
         const opt = document.createElement('option');
         opt.value = user.id;
         opt.textContent = user.email;
         sel.appendChild(opt);
     });
-    
+
     sel.value = currentVal;
 }
 
@@ -729,23 +798,23 @@ function filterContacts() {
     const query = document.getElementById('contacts-search').value.toLowerCase();
     const filterType = document.getElementById('contacts-filter-type').value;
     const userId = document.getElementById('contacts-filter-user').value;
-    
+
     const filtered = allContacts.filter(c => {
         const matchesQuery = (
             (c.contact_name && c.contact_name.toLowerCase().includes(query)) ||
             (c.phone_number && c.phone_number.includes(query)) ||
             (c.email && c.email.toLowerCase().includes(query))
         );
-        
-        const matchesType = !filterType || 
+
+        const matchesType = !filterType ||
             (filterType === 'phone' && c.phone_number) ||
             (filterType === 'email' && c.email);
-        
+
         const matchesUser = !userId || c.user_id === userId;
-        
+
         return matchesQuery && matchesType && matchesUser;
     });
-    
+
     renderContacts(filtered);
 }
 
@@ -754,7 +823,7 @@ function calculateContactsStats(contacts) {
     const withPhone = contacts.filter(c => c.phone_number).length;
     const withEmail = contacts.filter(c => c.email).length;
     const uniqueUsers = new Set(contacts.map(c => c.user_id)).size;
-    
+
     document.getElementById('total-contacts').textContent = totalContacts;
     document.getElementById('contacts-with-phone').textContent = withPhone;
     document.getElementById('contacts-with-email').textContent = withEmail;
@@ -763,13 +832,13 @@ function calculateContactsStats(contacts) {
 
 async function deleteContact(contactId) {
     if (!confirm('Are you sure you want to delete this contact?')) return;
-    
+
     const { error } = await supabaseClient.from('contacts').delete().eq('id', contactId);
     if (error) {
         alert('Error: ' + error.message);
         return;
     }
-    
+
     loadDashboardData('contacts');
 }
 
@@ -843,24 +912,37 @@ function renderChannels(channels) {
 function renderCategories(categories) {
     const grid = document.getElementById('categories-grid');
     grid.innerHTML = '';
-    categories.forEach(cat => {
+    categories.forEach((cat, index) => {
         const div = document.createElement('div');
         const hex = parseCategoryColorToCss(cat.color);
         const iconPath = cat.icon_path ?? cat.icon_url ?? null;
         const iconUrl = iconPath ? getBunnyUrl(iconPath) : '';
 
-        div.className = 'border rounded p-3 flex items-center gap-3 w-full sm:w-72';
+        div.className = 'border rounded p-3 flex items-center gap-3 w-full sm:w-auto h-20 shadow-sm bg-white';
         div.innerHTML = `
-            ${iconUrl ? `
-                <img src="${iconUrl}" alt="${cat.name}" class="w-10 h-10 rounded object-cover bg-gray-100" />
-            ` : `
-                <div class="w-10 h-10 rounded-full" style="background-color: ${hex}"></div>
-            `}
-            <div class="flex flex-col">
-              <span class="font-medium leading-tight">${cat.name}</span>
-              <span class="text-xs text-gray-500">ID: ${cat.id}</span>
+            <div class="flex flex-col gap-1">
+                <button onclick="moveCategory(${cat.id}, -1)" class="text-gray-400 hover:text-purple-600 ${index === 0 ? 'invisible' : ''}" title="Move Up">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                </button>
+                <button onclick="moveCategory(${cat.id}, 1)" class="text-gray-400 hover:text-purple-600 ${index === categories.length - 1 ? 'invisible' : ''}" title="Move Down">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
             </div>
-            <button onclick="deleteCategory(${cat.id})" class="ml-auto text-red-500">&times;</button>
+            ${iconUrl ? `
+                <img src="${iconUrl}" alt="${cat.name}" class="w-12 h-12 rounded-lg object-cover bg-gray-50 border" />
+            ` : `
+                <div class="w-12 h-12 rounded-lg border shadow-inner flex items-center justify-center" style="background-color: ${hex}22; border-color: ${hex}">
+                    <div class="w-4 h-4 rounded-full" style="background-color: ${hex}"></div>
+                </div>
+            `}
+            <div class="flex flex-col flex-1 min-w-0">
+              <span class="font-bold truncate text-gray-800">${cat.name}</span>
+              <span class="text-[10px] font-mono text-gray-400">#${cat.id} (Order: ${cat.display_order ?? 0})</span>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                <button onclick="showEditCategoryModal(${cat.id})" class="text-blue-500 hover:text-blue-700 text-sm font-medium">Edit</button>
+                <button onclick="deleteCategory(${cat.id})" class="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+            </div>
         `;
         grid.appendChild(div);
     });
@@ -874,7 +956,7 @@ async function toggleAdmin(id, newStatus) {
 }
 
 async function deleteVideo(id) {
-    if(!confirm("Delete video?")) return;
+    if (!confirm("Delete video?")) return;
     try {
         // First fetch video to get file paths
         const { data: videoData, error: fetchError } = await supabaseClient
@@ -882,7 +964,7 @@ async function deleteVideo(id) {
             .select('thumbnail_path, video_path, channel_avatar_path')
             .eq('id', id)
             .single();
-        
+
         if (fetchError) {
             alert('Error fetching video: ' + fetchError.message);
             return;
@@ -913,14 +995,14 @@ async function deleteVideo(id) {
 }
 
 async function deleteCategory(id) {
-     if(!confirm("Delete category?")) return;
+    if (!confirm("Delete category?")) return;
     const { error } = await supabaseClient.from('categories').delete().eq('id', id);
     if (!error) loadDashboardData('categories');
 }
 
 // Channel Functions
 async function deleteChannel(id) {
-     if(!confirm("Delete channel?")) return;
+    if (!confirm("Delete channel?")) return;
     try {
         const { error } = await supabaseClient.from('channels').delete().eq('id', id);
         if (error) {
@@ -957,12 +1039,12 @@ function showAddUserModal() {
             <label>Is Admin?</label>
         </div>
     `;
-    
+
     document.getElementById('modal-action-btn').onclick = async () => {
         const email = document.getElementById('new-email').value;
         const password = document.getElementById('new-password').value;
         const isAdmin = document.getElementById('new-is-admin').checked;
-        
+
         // As a client, we can only SignUp using our own session (swapping) or just signUp (Auth API).
         // Standard supabase client signUp logs the *current* user out if successful sometimes or returns session.
         // Actually, supabase.auth.signUp creates a user but may start a session.
@@ -972,9 +1054,9 @@ function showAddUserModal() {
         // ALERT: The prompt asked for "Add user option". 
         // CORRECT WAY: Call a Supabase Edge Function that uses Service Role Key to create user.
         // HACK WAY (Client side only): Sign up, it might replace session.
-        
+
         alert("To create users properly without logging out the admin, you should use Supabase Edge Functions. \n\nFor this demo, we will attempt signUp, but it might affect your session.");
-        
+
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
@@ -989,35 +1071,35 @@ function showAddUserModal() {
             // If SignUp logic auto-logs in the new user, we lost admin session. 
             // supabase.auth.signUp documentation says: "If email confirmation is enabled... user is not signed in". 
             // If disabled, it returns session. 
-            
+
             // Assume we can't easily do this in pure client JS without losing session unless we use a secondary Supabase client instance that doesn't persist session?
-            
+
             // Let's try to update the is_admin if we have the ID and are still admin.
             if (data.user && isAdmin) {
-                 // Wait a bit for trigger
-                 setTimeout(async () => {
-                     // We need to be admin to do this.
-                     const { error: updateError } = await supabaseClient.from('users').update({ is_admin: true }).eq('id', data.user.id);
-                     if (updateError) console.error(updateError);
-                     else {
-                         alert("User created and set as Admin!");
-                         loadDashboardData('users');
-                         closeModal();
-                     }
-                 }, 2000);
+                // Wait a bit for trigger
+                setTimeout(async () => {
+                    // We need to be admin to do this.
+                    const { error: updateError } = await supabaseClient.from('users').update({ is_admin: true }).eq('id', data.user.id);
+                    if (updateError) console.error(updateError);
+                    else {
+                        alert("User created and set as Admin!");
+                        loadDashboardData('users');
+                        closeModal();
+                    }
+                }, 2000);
             } else {
                 alert("User created via Auth! (Admin status update might require re-login if session was lost)");
                 closeModal();
             }
         }
     };
-    
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
 function showAddVideoModal() {
-     const modal = document.getElementById('modal');
+    const modal = document.getElementById('modal');
     document.getElementById('modal-title').textContent = "Add Video";
     document.getElementById('modal-content').innerHTML = `
                 <div class="space-y-3">
@@ -1071,55 +1153,55 @@ function showAddVideoModal() {
                 </div>
     `;
 
-        // Load channels and categories into selects
-        (async () => {
-                const channelSelectEl = document.getElementById('v-channel');
-                const { data: channelData, error: channelError } = await supabaseClient
-                        .from('channels')
-                        .select('id,name')
-                        .order('name', { ascending: true });
-                if (channelError) {
-                        channelSelectEl.innerHTML = `<option value="">Failed to load channels</option>`;
-                } else {
-                        const opts = (channelData ?? []).map(c => `<option value="${c.name}">${c.name}</option>`);
-                        channelSelectEl.innerHTML = `<option value="">Select channel</option>` + opts.join('');
-                }
+    // Load channels and categories into selects
+    (async () => {
+        const channelSelectEl = document.getElementById('v-channel');
+        const { data: channelData, error: channelError } = await supabaseClient
+            .from('channels')
+            .select('id,name')
+            .order('name', { ascending: true });
+        if (channelError) {
+            channelSelectEl.innerHTML = `<option value="">Failed to load channels</option>`;
+        } else {
+            const opts = (channelData ?? []).map(c => `<option value="${c.name}">${c.name}</option>`);
+            channelSelectEl.innerHTML = `<option value="">Select channel</option>` + opts.join('');
+        }
 
-                const selectEl = document.getElementById('v-cat-id');
-                const { data, error } = await supabaseClient
-                        .from('categories')
-                        .select('id,name')
-                        .order('id', { ascending: true });
-                if (error) {
-                        selectEl.innerHTML = `<option value="">Failed to load categories</option>`;
-                        return;
-                }
+        const selectEl = document.getElementById('v-cat-id');
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('id,name')
+            .order('id', { ascending: true });
+        if (error) {
+            selectEl.innerHTML = `<option value="">Failed to load categories</option>`;
+            return;
+        }
 
-                const opts = (data ?? []).map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`);
-                selectEl.innerHTML = `<option value="">Select category</option>` + opts.join('');
-        })();
+        const opts = (data ?? []).map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`);
+        selectEl.innerHTML = `<option value="">Select category</option>` + opts.join('');
+    })();
 
-        // Auto duration when selecting video
-        const videoInput = document.getElementById('v-video-file');
-        const durationEl = document.getElementById('v-duration-display');
-        let computedDurationSeconds = null;
-        videoInput.addEventListener('change', async () => {
-                computedDurationSeconds = null;
-                durationEl.textContent = 'Duration: detecting...';
-                const file = videoInput.files && videoInput.files[0];
-                if (!file) {
-                        durationEl.textContent = 'Duration: -';
-                        return;
-                }
-                try {
-                        const seconds = await getVideoDurationSeconds(file);
-                        computedDurationSeconds = seconds;
-                        durationEl.textContent = `Duration: ${formatHms(seconds)}`;
-                } catch (e) {
-                        durationEl.textContent = 'Duration: (failed to detect)';
-                }
-        });
-    
+    // Auto duration when selecting video
+    const videoInput = document.getElementById('v-video-file');
+    const durationEl = document.getElementById('v-duration-display');
+    let computedDurationSeconds = null;
+    videoInput.addEventListener('change', async () => {
+        computedDurationSeconds = null;
+        durationEl.textContent = 'Duration: detecting...';
+        const file = videoInput.files && videoInput.files[0];
+        if (!file) {
+            durationEl.textContent = 'Duration: -';
+            return;
+        }
+        try {
+            const seconds = await getVideoDurationSeconds(file);
+            computedDurationSeconds = seconds;
+            durationEl.textContent = `Duration: ${formatHms(seconds)}`;
+        } catch (e) {
+            durationEl.textContent = 'Duration: (failed to detect)';
+        }
+    });
+
     document.getElementById('modal-action-btn').onclick = async () => {
         const btn = document.getElementById('modal-action-btn');
         const statusEl = document.getElementById('v-upload-status');
@@ -1226,12 +1308,12 @@ function showAddVideoModal() {
             btn.textContent = 'Save';
         }
     };
-     modal.classList.remove('hidden');
+    modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
 function showAddCategoryModal() {
-     const modal = document.getElementById('modal');
+    const modal = document.getElementById('modal');
     document.getElementById('modal-title').textContent = "Add Category";
     document.getElementById('modal-content').innerHTML = `
         <input id="c-name" placeholder="Name" class="w-full border p-2 mb-2 rounded">
@@ -1242,7 +1324,7 @@ function showAddCategoryModal() {
             <p class="text-xs text-gray-500">Uploads to Bunny (images/category_icons/).</p>
         </div>
     `;
-    
+
     document.getElementById('modal-action-btn').onclick = async () => {
         const name = document.getElementById('c-name').value;
         const colorHex = document.getElementById('c-color').value;
@@ -1292,7 +1374,7 @@ function showAddCategoryModal() {
             } catch (uploadError) {
                 // If upload fails, delete orphaned DB entry
                 console.error('Upload error:', uploadError);
-                
+
                 if (categoryId) {
                     await supabaseClient.from('categories').delete().eq('id', categoryId).catch(e => {
                         console.error('Cleanup error (DB):', e);
@@ -1311,14 +1393,134 @@ function showAddCategoryModal() {
             alert('Error: ' + (e?.message ?? String(e)));
         }
     };
-     modal.classList.remove('hidden');
+    modal.classList.remove('hidden');
     modal.classList.add('flex');
+}
+
+async function showEditCategoryModal(id) {
+    const modal = document.getElementById('modal');
+    document.getElementById('modal-title').textContent = "Edit Category";
+    
+    // Fetch category data
+    const { data: cat, error } = await supabaseClient.from('categories').select('*').eq('id', id).single();
+    if (error) return alert(error.message);
+
+    const hex = parseCategoryColorToCss(cat.color);
+
+    document.getElementById('modal-content').innerHTML = `
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold mb-1 text-gray-700">Category Name</label>
+                <input id="c-name" value="${cat.name}" placeholder="Name" class="w-full border p-2 rounded focus:ring-2 focus:ring-purple-200 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-1 text-gray-700">Theme Color</label>
+                <div class="flex gap-2 items-center">
+                    <input id="c-color" type="color" value="${hex}" class="w-12 h-10 border rounded cursor-pointer">
+                    <span class="text-xs text-gray-500 font-mono">Current: ${cat.color}</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-1 text-gray-700">Category Icon</label>
+                <div class="flex items-center gap-3 p-2 border rounded bg-gray-50 mb-2">
+                    ${cat.icon_path ? `<img src="${getBunnyUrl(cat.icon_path)}" class="w-10 h-10 rounded object-cover border">` : '<div class="w-10 h-10 rounded bg-gray-200 flex items-center justify-center text-[10px] text-gray-400">No Icon</div>'}
+                    <div class="text-[10px] text-gray-500 truncate flex-1">${cat.icon_path || 'No icon set'}</div>
+                </div>
+                <input id="c-icon-file" type="file" accept="image/*" class="w-full border p-2 rounded bg-white text-sm">
+                <p class="text-[10px] text-gray-400 mt-1">Upload a new icon to replace the current one.</p>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('modal-action-btn').textContent = "Update";
+    document.getElementById('modal-action-btn').onclick = async () => {
+        const btn = document.getElementById('modal-action-btn');
+        btn.disabled = true;
+        btn.textContent = 'Updating...';
+
+        const name = document.getElementById('c-name').value;
+        const colorHex = document.getElementById('c-color').value;
+        const iconFile = document.getElementById('c-icon-file').files?.[0] ?? null;
+        
+        // Convert color format
+        const colorStr = '0xFF' + colorHex.substring(1).toUpperCase();
+
+        try {
+            const updatePayload = { name, color: colorStr };
+
+            // Handle Icon Upload
+            if (iconFile) {
+                if (!validateBunnyConfig()) throw new Error('Bunny config missing.');
+                
+                const ts = Date.now();
+                const iconName = safeFilename(iconFile.name);
+                const icon_path = await uploadToBunny(`images/category_icons/${ts}_${iconName}`, iconFile);
+                updatePayload.icon_path = icon_path;
+
+                // Delete old icon if exists
+                if (cat.icon_path) {
+                    await deleteBunnyFile(cat.icon_path).catch(console.warn);
+                }
+            }
+
+            const { error: updateError } = await supabaseClient.from('categories').update(updatePayload).eq('id', id);
+            if (updateError) throw updateError;
+
+            loadDashboardData('categories');
+            closeModal();
+        } catch (e) {
+            alert('Error updating category: ' + (e?.message ?? String(e)));
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Update';
+        }
+    };
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+async function moveCategory(id, direction) {
+    // Find the current category and its index in allCategories
+    const index = allCategories.findIndex(c => c.id == id);
+    if (index === -1) return;
+
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= allCategories.length) return;
+
+    const currentCat = allCategories[index];
+    const otherCat = allCategories[newIndex];
+
+    // Swap display_order
+    const currentOrder = currentCat.display_order ?? index;
+    const otherOrder = otherCat.display_order ?? newIndex;
+
+    // Swap logic
+    let targetOrder = otherOrder;
+    let newOtherOrder = currentOrder;
+
+    if (targetOrder === newOtherOrder) {
+        targetOrder = index + direction;
+        newOtherOrder = index;
+    }
+
+    try {
+        // Update both in DB
+        const { error: err1 } = await supabaseClient.from('categories').update({ display_order: targetOrder }).eq('id', currentCat.id);
+        const { error: err2 } = await supabaseClient.from('categories').update({ display_order: newOtherOrder }).eq('id', otherCat.id);
+
+        if (err1 || err2) throw (err1 || err2);
+
+        loadDashboardData('categories');
+    } catch (e) {
+        alert('Failed to reorder: ' + e.message);
+    }
 }
 
 
 // Channel Modal Functions
 function showAddChannelModal() {
-     const modal = document.getElementById('modal');
+    const modal = document.getElementById('modal');
     document.getElementById('modal-title').textContent = "Add Channel";
     document.getElementById('modal-content').innerHTML = `
         <div class="space-y-3">
@@ -1331,7 +1533,7 @@ function showAddChannelModal() {
             </div>
         </div>
     `;
-    
+
     document.getElementById('modal-action-btn').onclick = async () => {
         const name = document.getElementById('ch-name').value.trim();
         const description = document.getElementById('ch-description').value.trim();
@@ -1377,7 +1579,7 @@ function showAddChannelModal() {
             } catch (uploadError) {
                 // If upload fails, delete orphaned DB entry
                 console.error('Upload error:', uploadError);
-                
+
                 if (channelId) {
                     await supabaseClient.from('channels').delete().eq('id', channelId).catch(e => {
                         console.error('Cleanup error (DB):', e);
@@ -1396,14 +1598,14 @@ function showAddChannelModal() {
             alert('Error: ' + (e?.message ?? String(e)));
         }
     };
-     modal.classList.remove('hidden');
+    modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
 function showEditChannelModal(id) {
-     const modal = document.getElementById('modal');
+    const modal = document.getElementById('modal');
     document.getElementById('modal-title').textContent = "Edit Channel";
-    
+
     // Fetch channel data
     (async () => {
         const { data, error } = await supabaseClient.from('channels').select('*').eq('id', id).single();
@@ -1482,9 +1684,9 @@ function showEditChannelModal(id) {
 
 // Video Edit Modal Function
 function showEditVideoModal(id) {
-     const modal = document.getElementById('modal');
+    const modal = document.getElementById('modal');
     document.getElementById('modal-title').textContent = "Edit Video";
-    
+
     // Fetch video data
     (async () => {
         const { data, error } = await supabaseClient.from('videos').select('*').eq('id', id).single();
@@ -1570,7 +1772,7 @@ function showEditVideoModal(id) {
                 // STEP 2: Update database with new paths
                 updatePayload.thumbnail_path = thumbnail_path;
                 updatePayload.channel_avatar_path = channel_avatar_path;
-                
+
                 const { error } = await supabaseClient.from('videos').update(updatePayload).eq('id', id);
 
                 if (error) {
@@ -1597,13 +1799,13 @@ function showEditVideoModal(id) {
 
 // Utils
 function getBunnyUrl(path) {
-    if(!path) return '';
-    if(path.startsWith('http')) return path;
-    if(path.startsWith('/')) path = path.substring(1);
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    if (path.startsWith('/')) path = path.substring(1);
     // Prefer configured CDN base if available
     const base = (typeof BUNNY_CDN_BASE === 'string' && BUNNY_CDN_BASE.startsWith('http'))
         ? BUNNY_CDN_BASE.replace(/\/+$/, '') + '/'
-        : 'https://kidskonnect.b-cdn.net/';
+        : 'https://cdn.kidofy.in/';
     return base + path;
 }
 // ============================================
@@ -1613,24 +1815,24 @@ function getBunnyUrl(path) {
 function renderMart(martVideos) {
     const grid = document.getElementById('mart-grid');
     grid.innerHTML = '';
-    
+
     // Filter out demo items and show only real uploaded items
     const realItems = martVideos.filter(product => product && product.id);
-    
+
     if (realItems.length === 0) {
         grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No products uploaded yet. Click "Add Product" to create one.</div>';
         return;
     }
-    
+
     realItems.forEach(product => {
         const div = document.createElement('div');
         div.className = 'border rounded p-4 flex flex-col gap-3 bg-pink-50';
         const isActive = product.is_active ? '✓ Active' : '✗ Inactive';
         const statsHtml = `<div class="text-sm text-gray-600">Views: ${product.views || 0} | Clicks: ${product.clicks || 0}</div>`;
-        const thumbnailHtml = product.thumbnail_url 
+        const thumbnailHtml = product.thumbnail_url
             ? `<img src="${getBunnyUrl(product.thumbnail_url)}" class="w-full h-full object-cover rounded" onerror="this.style.display='none'">`
             : `<div class="flex items-center justify-center h-24 bg-gray-300 rounded"><span class="text-gray-600">No Thumbnail</span></div>`;
-        
+
         div.innerHTML = `
             <div>
                 <h4 class="font-bold text-sm">${product.shop_name}</h4>
@@ -1653,7 +1855,7 @@ function renderMart(martVideos) {
 function showAddMartModal() {
     const modal = document.getElementById('modal');
     document.getElementById('modal-title').innerText = 'Add Mart Product';
-    
+
     const content = `
         <div class="space-y-4">
             <div>
@@ -1689,13 +1891,13 @@ function showAddMartModal() {
             <p id="mart-upload-status" class="text-sm text-gray-600 hidden mt-3"></p>
         </div>
     `;
-    
+
     document.getElementById('modal-content').innerHTML = content;
-    
+
     document.getElementById('modal-action-btn').onclick = (async () => {
         const btn = document.getElementById('modal-action-btn');
         const statusEl = document.getElementById('mart-upload-status');
-        
+
         const title = document.getElementById('mart-title').value.trim();
         const shopName = document.getElementById('mart-shop-name').value.trim();
         const productLink = document.getElementById('mart-product-link').value.trim();
@@ -1720,14 +1922,14 @@ function showAddMartModal() {
             }
 
             const ts = Date.now();
-            
+
             // Upload video to videos/mart folder
             statusEl.textContent = 'Uploading video (0%)...';
             const videoName = safeFilename(videoFile.name);
             const videoPath = await uploadToBunnyWithProgress(`videos/mart/${ts}_${videoName}`, videoFile, (progress) => {
                 statusEl.textContent = `Uploading video (${Math.round(progress)}%)...`;
             });
-            
+
             // Upload thumbnail
             statusEl.textContent = 'Uploading thumbnail (0%)...';
             const thumbName = safeFilename(thumbnailFile.name);

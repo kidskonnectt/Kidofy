@@ -6,6 +6,7 @@ import 'package:kidsapp/services/bunny_service.dart';
 import 'package:kidsapp/utils/content_level.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kidsapp/services/profile_local_store.dart';
 import 'dart:convert';
 
 class SupabaseService {
@@ -192,6 +193,7 @@ class SupabaseService {
   // Assuming tables: videos, categories, profiles
 
   static const String _prefsProfileKey = 'selected_profile';
+  static const String _prefsProfilesListKey = 'cached_profiles_list';
 
   static Future<void> saveCurrentProfile(Profile p) async {
     final prefs = await SharedPreferences.getInstance();
@@ -199,9 +201,10 @@ class SupabaseService {
   }
 
   static Future<void> initializeData() async {
-    // Attempt to restore profile from cache first
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Restore the last selected profile from cache
     try {
-      final prefs = await SharedPreferences.getInstance();
       final String? profileJson = prefs.getString(_prefsProfileKey);
       if (profileJson != null) {
         final profileMap = jsonDecode(profileJson) as Map<String, dynamic>;
@@ -211,38 +214,97 @@ class SupabaseService {
       debugPrint('Error restoring profile: $e');
     }
 
+    // 2. Restore all profiles from cache
     try {
-      final cats = await getCategories();
+      final String? profilesJson = prefs.getString(_prefsProfilesListKey);
+      if (profilesJson != null) {
+        final List<dynamic> profilesList = jsonDecode(profilesJson);
+        MockData.profiles = profilesList.map((item) => Profile.fromJson(item as Map<String, dynamic>)).toList();
+        debugPrint('✅ Restored ${MockData.profiles.length} profiles from local cache');
+      }
+    } catch (e) {
+      debugPrint('Error restoring profiles list: $e');
+    }
+
+    // 3. Restore downloaded videos metadata from cache (Crucial for offline library)
+    try {
+      final cachedVideos = await ProfileLocalStore.getAllCachedVideos();
+      if (cachedVideos.isNotEmpty) {
+        // Merge with existing (ensures downloads are always there)
+        final existingIds = MockData.videos.map((v) => v.id).toSet();
+        for (final v in cachedVideos) {
+          if (!existingIds.contains(v.id)) {
+            MockData.videos.add(v);
+          }
+        }
+        MockData.snaps = MockData.videos.where((v) => v.isShorts).toList();
+        debugPrint('📦 Restored ${cachedVideos.length} downloaded videos metadata for offline use');
+      }
+    } catch (e) {
+      debugPrint('Error restoring cached videos: $e');
+    }
+
+    // 4. Attempt to fetch fresh data from network
+    try {
+      debugPrint('🔄 Fetching fresh data from Supabase...');
+      
+      // Fetch categories and videos concurrently for speed
+      final results = await Future.wait([
+        getCategories(),
+        getVideos(),
+      ]);
+      
+      final cats = results[0] as List<Category>;
+      final vids = results[1] as List<Video>;
+
       MockData.categories = [
         const Category(id: '0', name: 'Explore', color: 0xFFFFD600),
         ...cats,
       ];
+      
+      // MERGE LOGIC: Combine network videos with cached videos
+      // This ensures that downloaded videos stay in MockData.videos even if they 
+      // are not in the current network response (e.g. removed from server or offline)
+      final mergedVideos = List<Video>.from(vids);
+      final networkIds = vids.map((v) => v.id).toSet();
+      
+      final cachedVideos = await ProfileLocalStore.getAllCachedVideos();
+      for (final cv in cachedVideos) {
+        if (!networkIds.contains(cv.id)) {
+          mergedVideos.add(cv);
+        }
+      }
 
-      final vids = await getVideos();
-      MockData.videos = vids;
-      MockData.snaps = vids.where((v) => v.isShorts).toList();
+      MockData.videos = mergedVideos;
+      MockData.snaps = mergedVideos.where((v) => v.isShorts).toList();
 
       final user = client.auth.currentUser;
       if (user != null) {
         final profiles = await getProfiles(user.id);
-        MockData.profiles = profiles;
+        if (profiles.isNotEmpty) {
+          MockData.profiles = profiles;
+          // Cache the new list
+          await prefs.setString(_prefsProfilesListKey, jsonEncode(profiles.map((p) => p.toJson()).toList()));
+          debugPrint('💾 Cached ${profiles.length} profiles to local storage');
+        }
 
         final current = MockData.currentProfile.value;
-        if (current == null && profiles.isNotEmpty) {
-          final first = profiles.first;
+        if (current == null && MockData.profiles.isNotEmpty) {
+          final first = MockData.profiles.first;
           MockData.currentProfile.value = first;
           await saveCurrentProfile(first);
         } else if (current != null &&
-            profiles.isNotEmpty &&
-            !profiles.any((p) => p.id == current.id)) {
+            MockData.profiles.isNotEmpty &&
+            !MockData.profiles.any((p) => p.id == current.id)) {
           // If cached profile is no longer valid/exists on server
-          final first = profiles.first;
+          final first = MockData.profiles.first;
           MockData.currentProfile.value = first;
           await saveCurrentProfile(first);
         }
       }
+      debugPrint('✅ Data initialization complete (Online mode)');
     } catch (e) {
-      debugPrint('Error initializing data: $e');
+      debugPrint('⚠️ Network failure during initialization, relying on cache: $e');
     }
   }
 
@@ -685,30 +747,56 @@ class SupabaseService {
     }
   }
 
+  static const String _prefsBlockedKey = 'cached_blocked_content_';
+
   static Future<({Set<String> videoIds, Set<String> channelNames})>
   getBlockedContent(String profileId) async {
-    final response = await client
-        .from('blocked_content')
-        .select()
-        .eq('profile_id', profileId);
-    final List<dynamic> data = response as List<dynamic>;
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = '$_prefsBlockedKey$profileId';
+    
+    try {
+      final response = await client
+          .from('blocked_content')
+          .select()
+          .eq('profile_id', profileId);
+      final List<dynamic> data = response as List<dynamic>;
 
-    final videoIds = <String>{};
-    final channelNames = <String>{};
+      final videoIds = <String>{};
+      final channelNames = <String>{};
 
-    for (final row in data) {
-      final type = (row['item_type'] ?? '').toString();
-      final id = (row['item_id'] ?? '').toString();
-      if (id.isEmpty) continue;
+      for (final row in data) {
+        final type = (row['item_type'] ?? '').toString();
+        final id = (row['item_id'] ?? '').toString();
+        if (id.isEmpty) continue;
 
-      if (type == 'video') {
-        videoIds.add(id);
-      } else if (type == 'channel') {
-        channelNames.add(id);
+        if (type == 'video') {
+          videoIds.add(id);
+        } else if (type == 'channel') {
+          channelNames.add(id);
+        }
       }
-    }
 
-    return (videoIds: videoIds, channelNames: channelNames);
+      // Cache the result
+      await prefs.setString(cacheKey, jsonEncode({
+        'videoIds': videoIds.toList(),
+        'channelNames': channelNames.toList(),
+      }));
+
+      return (videoIds: videoIds, channelNames: channelNames);
+    } catch (e) {
+      debugPrint('Error fetching blocked content, checking cache: $e');
+      final cached = prefs.getString(cacheKey);
+      if (cached != null) {
+        try {
+          final map = jsonDecode(cached) as Map<String, dynamic>;
+          return (
+            videoIds: (map['videoIds'] as List).map((e) => e.toString()).toSet(),
+            channelNames: (map['channelNames'] as List).map((e) => e.toString()).toSet(),
+          );
+        } catch (_) {}
+      }
+      return (videoIds: <String>{}, channelNames: <String>{});
+    }
   }
 
   static Future<void> blockVideo({

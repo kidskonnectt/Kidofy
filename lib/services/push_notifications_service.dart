@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -121,9 +123,61 @@ class PushNotificationsService {
       debugPrint('   Body: ${message.notification?.body}');
     });
 
+    // Get and log token (Very useful for testing campaigns via "Test on device")
+    _setupToken();
+
+    // Subscribe to a generic topic for broadcast campaigns
+    subscribeTopic('all_users');
+
     _initialized = true;
     debugPrint('✅ Firebase Cloud Messaging initialized successfully');
   }
+
+  /// Get FCM token and save to Supabase if user is logged in
+  static Future<void> _setupToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        debugPrint('🔑 FCM Token: $token');
+        // Copy this token from debug console to Firebase Console "Test on device" 
+        // to verify integration immediately.
+        
+        await _saveTokenToSupabase(token);
+      }
+
+      // Listen for token refreshes
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        debugPrint('🔄 FCM Token Refreshed: $newToken');
+        _saveTokenToSupabase(newToken);
+      });
+    } catch (e) {
+      debugPrint('❌ Error getting FCM token: $e');
+    }
+  }
+
+  /// Save token to the fcm_tokens table in Supabase
+  static Future<void> _saveTokenToSupabase(String token) async {
+    // We use Supabase user since that's where the table is
+    final supabaseUser = Supabase.instance.client.auth.currentUser;
+    
+    if (supabaseUser == null) {
+      debugPrint('ℹ️ FCM: No user logged in, skipping token save to DB');
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.from('fcm_tokens').upsert({
+        'user_id': supabaseUser.id,
+        'fcm_token': token,
+        'platform': defaultTargetPlatform.name.toLowerCase(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+      debugPrint('💾 FCM token saved to Supabase for user ${supabaseUser.id}');
+    } catch (e) {
+      debugPrint('❌ FCM: Failed to save token to Supabase - $e');
+    }
+  }
+
 
   /// Display foreground notification using local notifications
   static Future<void> _showForegroundNotification(RemoteMessage message) async {

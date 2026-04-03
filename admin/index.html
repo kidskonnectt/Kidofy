@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KidsKonnect Admin</title>
+    <title>Kidofy Admin</title>
     <!-- Tailwind CSS for quick styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS -->
@@ -83,27 +83,51 @@
             <div id="content-area" class="bg-white rounded-lg shadow-md p-6">
                 <!-- Dynamic Content Loaded Here -->
                 <div id="users-section">
-                    <div class="flex justify-between mb-4">
-                        <h3 class="text-xl font-bold">User Management</h3>
-                        <button onclick="showAddUserModal()" class="bg-blue-500 text-white px-4 py-2 rounded">Add User</button>
+                    <div class="flex flex-col md:flex-row justify-between mb-4 gap-4">
+                        <div class="flex items-center gap-4">
+                            <h3 class="text-xl font-bold">User Management</h3>
+                            <div class="flex bg-gray-100 p-1 rounded-lg">
+                                <button onclick="switchUserTab('all')" id="user-tab-all" class="px-4 py-1.5 rounded-md text-sm font-medium bg-white shadow-sm text-purple-600">All Users</button>
+                                <button onclick="switchUserTab('providers')" id="user-tab-providers" class="px-4 py-1.5 rounded-md text-sm font-medium text-gray-600 hover:text-gray-800">Providers</button>
+                            </div>
+                        </div>
+                        <button onclick="showAddUserModal()" class="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600 transition-colors">Add User</button>
                     </div>
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr>
-                                <th class="border-b p-3">Email</th>
-                                <th class="border-b p-3">Phone Number</th>
-                                <th class="border-b p-3">Is Admin</th>
-                                <th class="border-b p-3">Joined</th>
-                                <th class="border-b p-3">Last Login</th>
-                                <th class="border-b p-3">Profiles</th>
-                                <th class="border-b p-3">Watch Time</th>
-                                <th class="border-b p-3">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table-body">
-                            <!-- Rows -->
-                        </tbody>
-                    </table>
+
+                    <div id="users-table-container">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="border-b p-3">Email</th>
+                                    <th class="border-b p-3">Phone Number</th>
+                                    <th class="border-b p-3">Is Admin</th>
+                                    <th class="border-b p-3">Joined</th>
+                                    <th class="border-b p-3">Last Login</th>
+                                    <th class="border-b p-3">Profiles</th>
+                                    <th class="border-b p-3">Watch Time</th>
+                                    <th class="border-b p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="providers-table-container" class="hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="border-b p-3">User Email</th>
+                                    <th class="border-b p-3">Provider(s)</th>
+                                    <th class="border-b p-3">Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody id="providers-table-body">
+                                <!-- Rows -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div id="channels-section" class="hidden">
@@ -124,6 +148,11 @@
                             <select id="video-filter-category" onchange="filterVideos()" class="border px-2 py-1 rounded">
                                 <option value="">All Categories</option>
                                 <!-- Categories populated dynamically -->
+                            </select>
+                            <select id="video-filter-type" onchange="filterVideos()" class="border px-2 py-1 rounded">
+                                <option value="">All Types</option>
+                                <option value="shorts">Shorts Only</option>
+                                <option value="regular">Regular Only</option>
                             </select>
                              <button onclick="showAddVideoModal()" class="bg-green-500 text-white px-4 py-2 rounded">Add Video</button>
                         </div>

@@ -425,22 +425,6 @@ class _SnapsScreenState extends State<SnapsScreen> {
                           size: 30,
                         ),
                         onSelected: (value) async {
-                          if (value == 'download') {
-                            try {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Downloading...'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                              await DownloadService.downloadVideoForCurrentProfile(
-                                video,
-                              );
-                            } catch (_) {
-                              // ignore
-                            }
-                            return;
-                          }
 
                           if (value == 'blockVideo') {
                             try {
@@ -531,16 +515,6 @@ class _SnapsScreenState extends State<SnapsScreen> {
                           }
                         },
                         itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'download',
-                            child: Row(
-                              children: [
-                                Icon(Icons.download, color: Colors.black),
-                                SizedBox(width: 8),
-                                Text('Download'),
-                              ],
-                            ),
-                          ),
                           PopupMenuItem(
                             value: 'blockVideo',
                             child: Row(
